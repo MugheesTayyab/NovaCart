@@ -28,6 +28,17 @@ export function AskWorkspace({ items, files }: { items: Record<string, IndexedIt
     endRef.current?.scrollIntoView({ block: "end", behavior: "smooth" });
   }, [thread.length]);
 
+  // /app?sample=<id> opens a sample answer directly (used by links from the site and the demo video).
+  const opened = useRef(false);
+  useEffect(() => {
+    if (opened.current) return;
+    opened.current = true;
+    const id = new URLSearchParams(window.location.search).get("sample");
+    const sample = SAMPLES.find((s) => s.id === id);
+    if (sample) send(sample.question, { sampleId: sample.id });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   async function send(question: string, opts?: { preset?: AskResponse; sampleId?: string }) {
     const q = question.trim();
     if (!q || busy) return;
@@ -263,7 +274,7 @@ function Evidence({
 
   const m = response.meta;
   const states = m.contact_date ? fileStates(files, m.contact_date) : null;
-  const inForce = states ? Object.values(states).filter((s) => s.state !== "not-yet").length : null;
+  const count = (st: string) => (states ? Object.values(states).filter((s) => s.state === st).length : 0);
   const sourceIds = [...new Set(response.sources.map((s) => refId(s.file, s.section)))];
   const tabs: [Tab, string, number | null][] = [
     ["sources", "Sources", sourceIds.length],
@@ -298,7 +309,10 @@ function Evidence({
         <div className={styles.evBlock}>
           <h3>Version check</h3>
           <p className={styles.version}>
-            Contact date <span className="mono">{m.contact_date}</span>. {inForce} of {files.length} files in force.
+            Contact date <span className="mono">{m.contact_date}</span>. {count("in-force")} of {files.length} files
+            apply
+            {count("superseded") ? `, ${count("superseded")} replaced by a later version` : ""}
+            {count("not-yet") ? `, ${count("not-yet")} not yet in force` : ""}.
           </p>
           {m.notices?.map((n) => (
             <div key={n} className={styles.notice}>
