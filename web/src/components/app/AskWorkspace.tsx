@@ -5,13 +5,21 @@ import styles from "./AskWorkspace.module.css";
 import { AnswerText } from "@/components/AnswerText";
 import { Receipt } from "@/components/Receipt";
 import { PolicyBlocks } from "@/components/PolicyBlocks";
-import { ask, type AskResult } from "@/lib/api";
+import { ask, type AskResult, type StreamMeta } from "@/lib/api";
 import { fileStates, refId, shortRef, type FileMeta } from "@/lib/cite";
 import { STATUS_LABEL, type AskResponse } from "@/lib/contract";
 import { SAMPLES } from "@/lib/samples";
 import type { IndexedItem } from "@/lib/policies";
 
-type Exchange = { id: number; question: string; result: AskResult | null; sampleId?: string; streamed?: string };
+type Exchange = {
+  id: number;
+  question: string;
+  result: AskResult | null;
+  sampleId?: string;
+  streamed?: string;
+  meta?: StreamMeta;
+  startedAt: number;
+};
 type Tab = "sources" | "rules" | "math" | "run";
 
 export function AskWorkspace({ items, files }: { items: Record<string, IndexedItem>; files: FileMeta[] }) {
@@ -23,10 +31,11 @@ export function AskWorkspace({ items, files }: { items: Record<string, IndexedIt
   const nextId = useRef(1);
   const endRef = useRef<HTMLDivElement>(null);
   const busy = thread.some((e) => e.result === null);
+  const last = thread[thread.length - 1];
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ block: "end", behavior: "smooth" });
-  }, [thread.length]);
+  }, [thread.length, last?.streamed?.length, last?.result]);
 
   // /app?sample=<id> opens a sample answer directly (used by links from the site and the demo video).
   const opened = useRef(false);
@@ -39,11 +48,15 @@ export function AskWorkspace({ items, files }: { items: Record<string, IndexedIt
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  function patch(id: number, fn: (e: Exchange) => Exchange) {
+    setThread((t) => t.map((e) => (e.id === id ? fn(e) : e)));
+  }
+
   async function send(question: string, opts?: { preset?: AskResponse; sampleId?: string }) {
     const q = question.trim();
     if (!q || busy) return;
     const id = nextId.current++;
-    setThread((t) => [...t, { id, question: q, result: null, sampleId: opts?.sampleId }]);
+    setThread((t) => [...t, { id, question: q, result: null, sampleId: opts?.sampleId, startedAt: Date.now() }]);
     setSelected(id);
     setActive(null);
     setTab("sources");
@@ -52,10 +65,10 @@ export function AskWorkspace({ items, files }: { items: Record<string, IndexedIt
     const result: AskResult = opts?.preset
       ? { ok: true, response: opts.preset, ms: 0 }
       : await ask(q, {
-          onToken: (text) =>
-            setThread((t) => t.map((e) => (e.id === id ? { ...e, streamed: (e.streamed ?? "") + text } : e))),
+          onMeta: (meta) => patch(id, (e) => ({ ...e, meta })),
+          onToken: (text) => patch(id, (e) => ({ ...e, streamed: (e.streamed ?? "") + text })),
         });
-    setThread((t) => t.map((e) => (e.id === id ? { ...e, result } : e)));
+    patch(id, (e) => ({ ...e, result }));
   }
 
   function cite(id: string) {
@@ -71,81 +84,83 @@ export function AskWorkspace({ items, files }: { items: Record<string, IndexedIt
       <section className={styles.convo} aria-label="Conversation">
         <header className={styles.head}>
           <h1>Ask</h1>
-          <p>Paste the customer&apos;s message as they wrote it, including any dates they mention.</p>
+          <p>Paste the customer&apos;s message as written, with any dates they mention.</p>
         </header>
 
         <div className={styles.thread}>
-          {thread.length === 0 && (
-            <div className={styles.samples}>
-              <h2>Sample questions</h2>
-              <ul>
-                {SAMPLES.map((s) => (
-                  <li key={s.id}>
-                    <button type="button" onClick={() => send(s.question, { sampleId: s.id })}>
-                      <span className={styles.sampleLabel}>{s.label}</span>
-                      <span className={styles.sampleQ}>{s.question}</span>
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-
-          {thread.map((e) => (
-            <article
-              key={e.id}
-              className={`${styles.exchange} ${e.id === selected ? styles.selected : ""}`}
-              onClick={() => setSelected(e.id)}
-            >
-              <div className={styles.customer}>
-                <p className={styles.who}>Customer</p>
-                <p>{e.question}</p>
-              </div>
-              <div className={styles.desk}>
-                <p className={styles.who}>
-                  Policy Desk
-                  {e.result?.ok && <StatusLabel status={e.result.response.status} />}
-                </p>
-                {e.result === null &&
-                  (e.streamed ? (
-                    <AnswerText text={e.streamed} />
-                  ) : (
-                    <p className={styles.pending}>Checking the policy files</p>
-                  ))}
-                {e.result && !e.result.ok && (
-                  <div className={styles.error} role="status">
-                    <p>{e.result.message}</p>
-                    {e.result.kind !== "preview-miss" && (
-                      <button type="button" onClick={() => send(e.question)}>
-                        Try again
+          <div className={styles.column}>
+            {thread.length === 0 && (
+              <div className={styles.samples}>
+                <h2>Sample questions</h2>
+                <ul>
+                  {SAMPLES.map((s, i) => (
+                    <li key={s.id} style={{ ["--i" as string]: i }}>
+                      <button type="button" onClick={() => send(s.question, { sampleId: s.id })}>
+                        <span className={styles.sampleLabel}>{s.label}</span>
+                        <span className={styles.sampleQ}>{s.question}</span>
                       </button>
-                    )}
-                  </div>
-                )}
-                {e.result?.ok && (
-                  <>
-                    <AnswerText
-                      text={e.result.response.answer}
-                      onCite={(id) => {
-                        setSelected(e.id);
-                        cite(id);
-                      }}
-                      active={e.id === selected ? active : null}
-                    />
-                    {e.result.response.status === "needs_info" && (
-                      <QuickReplies
-                        exchange={e}
-                        response={e.result.response}
-                        onPick={(value, preset) => send(value, { preset })}
-                        disabled={busy || e.id !== thread[thread.length - 1].id}
-                      />
-                    )}
-                  </>
-                )}
+                    </li>
+                  ))}
+                </ul>
               </div>
-            </article>
-          ))}
-          <div ref={endRef} />
+            )}
+
+            {thread.map((e) => (
+              <article
+                key={e.id}
+                className={`${styles.exchange} ${e.id === selected ? styles.selected : ""}`}
+                onClick={() => setSelected(e.id)}
+              >
+                <div className={styles.customer}>
+                  <p className={styles.who}>Customer</p>
+                  <p>{e.question}</p>
+                </div>
+                <div className={styles.desk} data-state={e.result ? "done" : e.streamed ? "streaming" : "thinking"}>
+                  <p className={styles.who}>
+                    Policy Desk
+                    {e.result?.ok && <StatusLabel status={e.result.response.status} />}
+                  </p>
+                  {e.result === null && !e.streamed && <FileScan files={files} meta={e.meta} startedAt={e.startedAt} />}
+                  {e.result === null && e.streamed && (
+                    <div className={styles.streaming}>
+                      <AnswerText text={e.streamed} />
+                    </div>
+                  )}
+                  {e.result && !e.result.ok && (
+                    <div className={styles.error} role="status">
+                      <p>{e.result.message}</p>
+                      {e.result.kind !== "preview-miss" && (
+                        <button type="button" onClick={() => send(e.question)}>
+                          Try again
+                        </button>
+                      )}
+                    </div>
+                  )}
+                  {e.result?.ok && (
+                    <>
+                      <AnswerText
+                        text={e.result.response.answer}
+                        onCite={(id) => {
+                          setSelected(e.id);
+                          cite(id);
+                        }}
+                        active={e.id === selected ? active : null}
+                      />
+                      {e.result.response.status === "needs_info" && (
+                        <QuickReplies
+                          exchange={e}
+                          response={e.result.response}
+                          onPick={(value, preset) => send(value, { preset })}
+                          disabled={busy || e.id !== last?.id}
+                        />
+                      )}
+                    </>
+                  )}
+                </div>
+              </article>
+            ))}
+            <div ref={endRef} />
+          </div>
         </div>
 
         <form
@@ -155,25 +170,29 @@ export function AskWorkspace({ items, files }: { items: Record<string, IndexedIt
             send(draft);
           }}
         >
-          <label htmlFor="q" className="visually-hidden">
-            Customer message
-          </label>
-          <textarea
-            id="q"
-            rows={2}
-            value={draft}
-            placeholder="e.g. Today is 2026-09-01. I live in Multan. Is shipping free on a Rs. 6,000 order?"
-            onChange={(ev) => setDraft(ev.target.value)}
-            onKeyDown={(ev) => {
-              if (ev.key === "Enter" && !ev.shiftKey) {
-                ev.preventDefault();
-                send(draft);
-              }
-            }}
-          />
-          <button type="submit" disabled={busy || !draft.trim()}>
-            Send
-          </button>
+          <div className={styles.column}>
+            <label htmlFor="q" className="visually-hidden">
+              Customer message
+            </label>
+            <div className={styles.field}>
+              <textarea
+                id="q"
+                rows={1}
+                value={draft}
+                placeholder="e.g. Today is 2026-09-01. I live in Multan. Is shipping free on a Rs. 6,000 order?"
+                onChange={(ev) => setDraft(ev.target.value)}
+                onKeyDown={(ev) => {
+                  if (ev.key === "Enter" && !ev.shiftKey) {
+                    ev.preventDefault();
+                    send(draft);
+                  }
+                }}
+              />
+              <button type="submit" disabled={busy || !draft.trim()}>
+                Send
+              </button>
+            </div>
+          </div>
         </form>
       </section>
 
@@ -191,7 +210,40 @@ export function AskWorkspace({ items, files }: { items: Record<string, IndexedIt
   );
 }
 
+/*
+ * What the desk is doing while it thinks, drawn from what it is really doing: one
+ * mark per policy file. The marks scan while the service retrieves; when it reports
+ * the evidence, the files it is reading from light up.
+ */
+function FileScan({ files, meta, startedAt }: { files: FileMeta[]; meta?: StreamMeta; startedAt: number }) {
+  const [elapsed, setElapsed] = useState(0);
+  useEffect(() => {
+    const t = setInterval(() => setElapsed(Date.now() - startedAt), 100);
+    return () => clearInterval(t);
+  }, [startedAt]);
+  const used = new Set((meta?.evidence ?? []).map((e) => e.id.slice(0, 2)));
+  const sections = meta?.evidence?.length ?? 0;
+  return (
+    <div className={styles.scan} data-phase={meta ? "found" : "reading"} role="status" aria-live="polite">
+      <ol className={styles.ticks} aria-hidden="true">
+        {files.map((f, i) => (
+          <li key={f.num} style={{ ["--i" as string]: i }} data-used={used.has(f.num) || undefined} title={`${f.num} ${f.title}`}>
+            <span>{f.num}</span>
+          </li>
+        ))}
+      </ol>
+      <p>
+        {meta
+          ? `Found ${sections} sections in ${used.size} files. Checking which rules apply and writing the answer.`
+          : `Reading the question and searching ${files.length} policy files.`}
+        <span className={styles.elapsed}>{(elapsed / 1000).toFixed(1)} s</span>
+      </p>
+    </div>
+  );
+}
+
 function StatusLabel({ status }: { status: AskResponse["status"] }) {
+  if (!STATUS_LABEL[status]) return null;
   return (
     <span className={styles.status} data-status={status}>
       {STATUS_LABEL[status]}
@@ -262,8 +314,10 @@ function Evidence({
   if (!response) {
     return (
       <aside className={styles.evidence} aria-label="Evidence">
-        <div className={styles.evEmpty}>
+        <div className={styles.evHead}>
           <h2>Evidence</h2>
+        </div>
+        <div className={styles.evEmpty}>
           <p>
             Each answer shows its work here: the details read from the question, the policy versions in force on that
             date, the sections it cites, the order rules were applied in, and the calculation.
@@ -277,6 +331,7 @@ function Evidence({
   const states = m.contact_date ? fileStates(files, m.contact_date) : null;
   const count = (st: string) => (states ? Object.values(states).filter((s) => s.state === st).length : 0);
   const sourceIds = [...new Set(response.sources.map((s) => refId(s.file, s.section)))];
+  const slots = Object.entries(m.slots ?? {});
   const tabs: [Tab, string, number | null][] = [
     ["sources", "Sources", sourceIds.length],
     ["rules", "Rule order", response.rule_order.length],
@@ -285,18 +340,17 @@ function Evidence({
   ];
 
   return (
-    <aside className={styles.evidence} aria-label="Evidence">
-      <div className={styles.evBlock}>
-        <h2 className={styles.evTitle}>
-          Evidence <StatusLabel status={response.status} />
-        </h2>
+    <aside className={styles.evidence} aria-label="Evidence" key={m.request_id ?? response.answer.slice(0, 40)}>
+      <div className={styles.evHead}>
+        <h2>Evidence</h2>
+        <StatusLabel status={response.status} />
       </div>
 
-      {m.slots && (
+      {slots.length > 0 && (
         <div className={styles.evBlock}>
           <h3>Read from the question</h3>
           <dl className={styles.slots}>
-            {Object.entries(m.slots).map(([k, v]) => (
+            {slots.map(([k, v]) => (
               <div key={k}>
                 <dt>{k}</dt>
                 <dd className={v ? undefined : styles.missing}>{v ?? "Not given"}</dd>
@@ -309,9 +363,8 @@ function Evidence({
       {m.contact_date && (
         <div className={styles.evBlock}>
           <h3>Version check</h3>
-          <p className={styles.version}>
-            Contact date <span className="mono">{m.contact_date}</span>. {count("in-force")} of {files.length} files
-            apply
+          <p className={styles.small}>
+            Contact date {m.contact_date}. {count("in-force")} of {files.length} files apply
             {count("superseded") ? `, ${count("superseded")} replaced by a later version` : ""}
             {count("not-yet") ? `, ${count("not-yet")} not yet in force` : ""}.
           </p>
@@ -359,23 +412,26 @@ function Evidence({
         ))}
       </div>
 
-      <div className={styles.panel} role="tabpanel">
-        {tab === "sources" && (
-          <ul className={styles.sources}>
-            {sourceIds.map((id) => {
-              const it = items[id];
-              return (
-                <li key={id} ref={active === id ? activeRef : undefined} className={active === id ? styles.on : undefined}>
-                  <button type="button" className={styles.sourceHead} onClick={() => onCite(id)}>
-                    <span className="mono">{it ? `${it.fileName}, Section ${it.num}` : shortRef(id)}</span>
-                    {it && <span className={styles.sectionTitle}>{it.sectionTitle}</span>}
-                  </button>
-                  {it ? <PolicyBlocks blocks={it.blocks} /> : <p className={styles.small}>Section not found in the files.</p>}
-                </li>
-              );
-            })}
-          </ul>
-        )}
+      <div className={styles.panel} role="tabpanel" key={tab}>
+        {tab === "sources" &&
+          (sourceIds.length ? (
+            <ul className={styles.sources}>
+              {sourceIds.map((id) => {
+                const it = items[id];
+                return (
+                  <li key={id} ref={active === id ? activeRef : undefined} className={active === id ? styles.on : undefined}>
+                    <button type="button" className={styles.sourceHead} onClick={() => onCite(id)}>
+                      <span className={styles.sourceName}>{it ? `${it.fileName}, Section ${it.num}` : shortRef(id)}</span>
+                      {it && <span className={styles.sectionTitle}>{it.sectionTitle}</span>}
+                    </button>
+                    {it ? <PolicyBlocks blocks={it.blocks} /> : <p className={styles.small}>Section not found in the files.</p>}
+                  </li>
+                );
+              })}
+            </ul>
+          ) : (
+            <p className={styles.small}>This answer cites no policy section.</p>
+          ))}
         {tab === "rules" &&
           (response.rule_order.length ? (
             <ol className={styles.rules}>
@@ -389,7 +445,7 @@ function Evidence({
               ))}
             </ol>
           ) : (
-            <p className={styles.small}>Only one rule applied, so there was no order to decide.</p>
+            <p className={styles.small}>No competing rules, so there was no order to decide.</p>
           ))}
         {tab === "math" &&
           (response.calculation.length ? (
