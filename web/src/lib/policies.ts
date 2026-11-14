@@ -200,3 +200,39 @@ export function corpusStats() {
     regional: files.filter((f) => f.scope === "regional").length,
   };
 }
+
+export type IndexedItem = {
+  id: string;
+  fileName: string;
+  fileTitle: string;
+  sectionTitle: string;
+  num: string;
+  blocks: Block[];
+};
+
+/** Flat id -> item map, small enough (about 50 KB) to hand to client components. */
+export function itemIndex(): Record<string, IndexedItem> {
+  const out: Record<string, IndexedItem> = {};
+  for (const f of getPolicies())
+    for (const s of f.sections)
+      for (const it of s.items)
+        out[it.id] = {
+          id: it.id,
+          fileName: f.fileName,
+          fileTitle: f.title,
+          sectionTitle: s.title,
+          num: it.num,
+          blocks: it.blocks,
+        };
+  return out;
+}
+
+export function fileMetas() {
+  return getPolicies().map((f) => ({
+    num: f.num,
+    title: f.title,
+    effectiveDate: f.effectiveDate,
+    scope: f.scope,
+    version: f.version,
+  }));
+}
