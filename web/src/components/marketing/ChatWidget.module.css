@@ -1,0 +1,371 @@
+/*
+ * The site's chat: a corner launcher whose ring of text turns slowly, and a window
+ * that covers most of the screen. Maximize grows the window to the edges before the
+ * full desk page takes over, so the change of page reads as one movement.
+ */
+
+/* ---------- launcher ---------- */
+
+.launcher {
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
+  z-index: 40;
+  width: 96px;
+  height: 96px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: none;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  transition: opacity 200ms var(--ease), scale 200ms var(--ease);
+  animation: launcher-in 600ms var(--ease) 400ms both;
+}
+
+/* A paper disc so the turning text stays readable over any part of the page. */
+.launcher::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  box-shadow: var(--shadow-2);
+}
+
+.launcher[data-hidden] {
+  opacity: 0;
+  scale: 0.85;
+  pointer-events: none;
+}
+
+.ring {
+  position: absolute;
+  inset: 2px;
+  width: calc(100% - 4px);
+  height: calc(100% - 4px);
+  overflow: visible;
+  animation: turn 18s linear infinite;
+}
+
+.ring text {
+  font-family: var(--font-sans);
+  font-size: 8.6px;
+  font-weight: 500;
+  fill: var(--ink-2);
+}
+
+.launcher:hover .ring {
+  animation-duration: 6s;
+}
+
+.core {
+  position: relative;
+  width: 56px;
+  height: 56px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--ink);
+  color: var(--paper);
+  box-shadow: var(--shadow-2);
+  transition: scale 220ms var(--ease), background-color 220ms var(--ease);
+}
+
+.launcher:hover .core {
+  scale: 1.06;
+  background: var(--accent);
+}
+
+.launcher:active .core {
+  scale: 0.96;
+}
+
+.launcher:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* A small mark that the desk is live: one dot, one widening ring. */
+.live {
+  position: absolute;
+  top: 22px;
+  right: 22px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--accent);
+  border: 2px solid var(--paper);
+}
+
+.live::after {
+  content: "";
+  position: absolute;
+  inset: -2px;
+  border-radius: 50%;
+  border: 1.5px solid var(--accent);
+  animation: ping 2.4s var(--ease) infinite;
+}
+
+/* ---------- window ---------- */
+
+.layer {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: grid;
+  place-items: center;
+}
+
+.layer[hidden] {
+  display: none;
+}
+
+.backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgb(14 15 17 / 0.32);
+  animation: fade-in 240ms var(--ease) both;
+}
+
+.dialog {
+  position: relative;
+  width: min(1280px, calc(100vw - 64px));
+  height: calc(100dvh - 64px);
+  overflow: hidden;
+  background: var(--paper);
+  border: 1px solid var(--line-strong);
+  border-radius: 12px;
+  box-shadow: 0 24px 64px -24px rgb(14 15 17 / 0.35), 0 2px 6px rgb(14 15 17 / 0.08);
+  transition: width 300ms var(--ease), height 300ms var(--ease), border-radius 300ms var(--ease);
+}
+
+.layer[data-phase="pop"] .dialog {
+  transform-origin: calc(100% - 24px) calc(100% - 24px);
+  animation: pop 380ms var(--ease) both;
+}
+
+/* Back from the full page: start at the edges and settle into the window. */
+.layer[data-phase="restore"] .dialog {
+  animation: shrink 420ms var(--ease) both;
+}
+
+.layer[data-phase="restore"] .backdrop {
+  animation-duration: 420ms;
+}
+
+.layer[data-phase="closing"] .dialog {
+  transform-origin: calc(100% - 24px) calc(100% - 24px);
+  animation: pop-out 200ms var(--ease) both;
+}
+
+.layer[data-phase="closing"] .backdrop {
+  animation: fade-out 200ms var(--ease) both;
+}
+
+.layer[data-phase="expanding"] .dialog {
+  width: 100vw;
+  height: 100dvh;
+  border-radius: 0;
+  border-color: transparent;
+}
+
+/* ---------- window header ---------- */
+
+.title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.title h2 {
+  font-size: var(--t-15);
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.title p {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--t-12);
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.titleMark {
+  position: relative;
+  flex: none;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: var(--ink);
+}
+
+.titleMark::before {
+  content: "";
+  position: absolute;
+  inset: 9px;
+  border: 1.5px solid var(--paper);
+  border-radius: 50%;
+}
+
+.titleMark::after {
+  content: "";
+  position: absolute;
+  width: 7px;
+  height: 7px;
+  right: 7px;
+  top: 7px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+
+.dot {
+  position: relative;
+  flex: none;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+
+.dot[data-live="yes"]::after {
+  content: "";
+  position: absolute;
+  inset: -3px;
+  border-radius: 50%;
+  border: 1px solid var(--accent);
+  animation: ping 2.4s var(--ease) infinite;
+}
+
+.dot[data-live="no"] {
+  background: var(--line-strong);
+}
+
+.winBtn {
+  width: 30px;
+  height: 30px;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--line);
+  border-radius: var(--r-s);
+  background: var(--surface);
+  color: var(--ink-2);
+  cursor: pointer;
+  transition: border-color 160ms var(--ease), color 160ms var(--ease), background-color 160ms var(--ease);
+}
+
+.winBtn:hover:not(:disabled) {
+  border-color: var(--ink-2);
+  color: var(--ink);
+}
+
+.winBtn:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+/* ---------- motion ---------- */
+
+@keyframes turn {
+  to {
+    rotate: 360deg;
+  }
+}
+
+@keyframes ping {
+  0% {
+    scale: 1;
+    opacity: 0.9;
+  }
+  70%,
+  100% {
+    scale: 2.4;
+    opacity: 0;
+  }
+}
+
+@keyframes launcher-in {
+  from {
+    opacity: 0;
+    scale: 0.7;
+  }
+}
+
+@keyframes pop {
+  from {
+    opacity: 0;
+    transform: scale(0.94) translateY(16px);
+  }
+}
+
+@keyframes pop-out {
+  to {
+    opacity: 0;
+    transform: scale(0.96) translateY(10px);
+  }
+}
+
+@keyframes shrink {
+  from {
+    width: 100vw;
+    height: 100dvh;
+    border-radius: 0;
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes fade-out {
+  to {
+    opacity: 0;
+  }
+}
+
+@media (max-width: 640px) {
+  .launcher {
+    right: 12px;
+    bottom: 12px;
+    width: 84px;
+    height: 84px;
+  }
+  .core {
+    width: 50px;
+    height: 50px;
+  }
+  .live {
+    top: 18px;
+    right: 18px;
+  }
+  .dialog {
+    width: calc(100vw - 16px);
+    height: calc(100dvh - 16px);
+  }
+  .title p {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ring,
+  .live::after,
+  .dot::after {
+    animation: none;
+  }
+  .launcher,
+  .dialog,
+  .backdrop {
+    animation-duration: 1ms !important;
+    transition-duration: 1ms !important;
+  }
+}
