@@ -124,10 +124,21 @@ class Settings:
 
 
 def load_settings() -> Settings:
-    policy_dir = Path(_get("POLICY_DIR") or (REPO_ROOT / "policies"))
+    # The organizers' policies/ folder at the repository root. A host that deploys only api/
+    # (Vercel with Root Directory "api") uses the copy in api/policies instead.
+    default_policies = REPO_ROOT / "policies"
+    if not default_policies.is_dir() and (API_DIR / "policies").is_dir():
+        default_policies = API_DIR / "policies"
+    policy_dir = Path(_get("POLICY_DIR") or default_policies)
     if not policy_dir.is_absolute():
         policy_dir = (REPO_ROOT / policy_dir).resolve()
-    cache_dir = Path(_get("INDEX_CACHE_DIR", ".cache/policy_index"))
+    if not policy_dir.is_dir() and (API_DIR / "policies").is_dir():
+        policy_dir = API_DIR / "policies"
+    # Serverless file systems are read-only except /tmp.
+    cache_default = "/tmp/policy_index" if os.environ.get("VERCEL") else ".cache/policy_index"
+    cache_dir = Path(_get("INDEX_CACHE_DIR", cache_default))
+    if os.environ.get("VERCEL") and not str(cache_dir).startswith("/tmp"):
+        cache_dir = Path("/tmp/policy_index")
     if not cache_dir.is_absolute():
         cache_dir = (API_DIR / cache_dir).resolve()
     origins = [o.strip() for o in _get("ALLOWED_ORIGINS", "http://localhost:3000").split(",") if o.strip()]

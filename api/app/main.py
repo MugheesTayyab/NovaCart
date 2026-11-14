@@ -13,6 +13,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import os
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
@@ -30,6 +31,7 @@ from .sessions import RateLimiter, SessionStore
 
 settings = load_settings()
 setup_logging(settings.log_level)
+SERVERLESS = bool(os.environ.get("VERCEL"))
 log = logging.getLogger("app")
 
 
@@ -45,8 +47,7 @@ async def _build_index(app: FastAPI) -> None:
         app.state.loading = False
 
 
-@asynccontextmanager
-async def lifespan(app: FastAPI):
+def _init_state(app: FastAPI) -> None:
     app.state.settings = settings
     app.state.config_problems = validate(settings)
     for p in app.state.config_problems:
@@ -58,11 +59,37 @@ async def lifespan(app: FastAPI):
     app.state.store = None
     app.state.retriever = None
     app.state.loading = True
-    # The index is built before the first chat answer; requests that arrive while it is
-    # loading get a short "starting up" reply instead of an error.
-    task = asyncio.create_task(_build_index(app))
+
+
+_ready_lock = asyncio.Lock()
+
+
+async def ensure_ready(app: FastAPI) -> None:
+    """Serverless hosts (Vercel) may not run the startup hook, and may freeze background
+    tasks between requests. There the first request sets up state and builds the index
+    itself (22 files, well under a second)."""
+    if getattr(app.state, "gateway", None) is not None and not (SERVERLESS and app.state.loading):
+        return
+    async with _ready_lock:
+        if getattr(app.state, "gateway", None) is None:
+            _init_state(app)
+        if app.state.loading:
+            await _build_index(app)
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    _init_state(app)
+    task = None
+    if SERVERLESS:
+        await _build_index(app)
+    else:
+        # The index is built before the first chat answer; requests that arrive while it is
+        # loading get a short "starting up" reply instead of an error.
+        task = asyncio.create_task(_build_index(app))
     yield
-    task.cancel()
+    if task:
+        task.cancel()
     await app.state.gateway.close()
 
 
@@ -91,8 +118,21 @@ def _client_key(request: Request, session_id: str | None) -> str:
     return f"s:{session_id}" if session_id else f"ip:{ip}"
 
 
+@app.get("/")
+async def root() -> dict:
+    return {
+        "service": "Policy Desk answer service",
+        "endpoints": {
+            "GET /health": "status of the policy index and model providers",
+            "POST /ask": '{"question": "...", "session_id": "optional"} -> one JSON answer',
+            "POST /chat/stream": '{"message": "...", "session_id": "optional"} -> Server-Sent Events',
+        },
+    }
+
+
 @app.get("/health")
 async def health() -> dict:
+    await ensure_ready(app)
     st = app.state
     store = st.store
     ok = not st.config_problems and store is not None and store.ready and not st.loading
@@ -115,6 +155,7 @@ async def health() -> dict:
 
 @app.post("/chat/stream")
 async def chat_stream(body: ChatIn, request: Request) -> StreamingResponse:
+    await ensure_ready(app)
     key = _client_key(request, body.session_id)
 
     async def events():
@@ -135,6 +176,7 @@ async def chat_stream(body: ChatIn, request: Request) -> StreamingResponse:
 
 @app.post("/ask")
 async def ask(body: AskIn, request: Request) -> JSONResponse:
+    await ensure_ready(app)
     key = _client_key(request, body.session_id)
     final = None
     try:
