@@ -613,3 +613,38 @@
 .open:hover {
   text-decoration-color: var(--accent);
 }
+
+/* Buttons that open the chat window share the link styles above. */
+button.cta,
+button.primary {
+  border: 0;
+  font: inherit;
+  cursor: pointer;
+}
+
+button.cta {
+  font-size: var(--t-13);
+  font-weight: 500;
+}
+
+button.primary {
+  font-weight: 500;
+}
+
+button.open {
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: var(--t-13);
+  color: var(--accent-ink);
+  text-align: left;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  text-decoration-color: var(--accent-wash);
+  cursor: pointer;
+}
+
+button.open:hover {
+  text-decoration-color: var(--accent);
+}

@@ -2,6 +2,8 @@ import Link from "next/link";
 import styles from "./marketing.module.css";
 
 import { REPO_URL } from "@/lib/site";
+import { ChatWidget, OpenChatButton } from "@/components/marketing/ChatWidget";
+import { fileMetas, itemIndex } from "@/lib/policies";
 
 export default function MarketingLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -16,10 +18,9 @@ export default function MarketingLayout({ children }: { children: React.ReactNod
           <a href="#limits">When files are silent</a>
           <a href="#decides">How it decides</a>
           <a href="#policies">Policy set</a>
+          <Link href="/app">Full desk</Link>
         </nav>
-        <Link href="/app" className={styles.cta}>
-          Open the desk
-        </Link>
+        <OpenChatButton className={styles.cta}>Ask a question</OpenChatButton>
       </header>
       <main>{children}</main>
       <footer className={styles.footer}>
@@ -32,6 +33,7 @@ export default function MarketingLayout({ children }: { children: React.ReactNod
           <Link href="/app">Open the desk</Link>
         </div>
       </footer>
+      <ChatWidget items={itemIndex()} files={fileMetas()} />
     </div>
   );
 }

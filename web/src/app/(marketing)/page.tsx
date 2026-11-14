@@ -7,6 +7,7 @@ import { VersionStrip } from "@/components/marketing/VersionStrip";
 import { SAMPLES } from "@/lib/samples";
 import { corpusStats, getPolicies } from "@/lib/policies";
 import { shortRef } from "@/lib/cite";
+import { OpenChatButton } from "@/components/marketing/ChatWidget";
 
 const STEPS: { name: string; by: string; text: string }[] = [
   {
@@ -75,9 +76,9 @@ export default function Home() {
           came from, the money is worked out in code, and when the files are silent the reply says so.
         </p>
         <div className={styles.actions}>
-          <Link href="/app" className={styles.primary}>
+          <OpenChatButton className={styles.primary}>
             Ask a question
-          </Link>
+          </OpenChatButton>
           <a href="#answer" className={styles.secondary}>
             See a full answer
           </a>
@@ -133,9 +134,9 @@ export default function Home() {
                 ))}
               </ol>
             </div>
-            <Link href={`/app?sample=${refund.id}`} className={styles.open}>
-              Open this answer in the desk, with every source
-            </Link>
+            <OpenChatButton sample={refund.id} className={styles.open}>
+              Ask this in the chat, with every source
+            </OpenChatButton>
           </article>
           <ol className={styles.notes}>
             <li>
@@ -187,9 +188,9 @@ export default function Home() {
                   ))}
                 </tbody>
               </table>
-              <Link href={`/app?sample=${ask.id}`} className={styles.open}>
-                Open this case in the desk
-              </Link>
+              <OpenChatButton sample={ask.id} className={styles.open}>
+                Ask this in the chat
+              </OpenChatButton>
             </div>
           </div>
           <div className={styles.caseRow}>
@@ -197,9 +198,9 @@ export default function Home() {
             <p className={styles.caseQ}>{partial.question}</p>
             <div className={styles.caseA}>
               <AnswerText text={partial.response.answer} />
-              <Link href={`/app?sample=${partial.id}`} className={styles.open}>
-                Open this case in the desk
-              </Link>
+              <OpenChatButton sample={partial.id} className={styles.open}>
+                Ask this in the chat
+              </OpenChatButton>
             </div>
           </div>
           <div className={styles.caseRow}>
@@ -207,9 +208,9 @@ export default function Home() {
             <p className={styles.caseQ}>{conflict.question}</p>
             <div className={styles.caseA}>
               <AnswerText text={conflict.response.answer.split("\n\n").slice(0, 2).join("\n\n")} />
-              <Link href={`/app?sample=${conflict.id}`} className={styles.open}>
-                Open this case in the desk
-              </Link>
+              <OpenChatButton sample={conflict.id} className={styles.open}>
+                Ask this in the chat
+              </OpenChatButton>
             </div>
           </div>
         </div>
