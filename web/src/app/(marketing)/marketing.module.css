@@ -3,7 +3,7 @@
   /* Squared paper behind the whole page, fading out below the hero. */
   background-image: linear-gradient(var(--grid) 1px, transparent 1px),
     linear-gradient(90deg, var(--grid) 1px, transparent 1px);
-  background-size: 56px 56px;
+  background-size: 28px 28px;
   background-position: center -1px;
 }
 

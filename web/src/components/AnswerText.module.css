@@ -36,3 +36,16 @@
 .keep {
   white-space: nowrap;
 }
+
+/* A chip that has just appeared (for example while an answer streams in) flashes once. */
+.chip {
+  font-variant-numeric: tabular-nums;
+  animation: chip-in 700ms var(--ease) both;
+}
+
+@keyframes chip-in {
+  from {
+    background: var(--accent-wash);
+    border-color: var(--accent);
+  }
+}
