@@ -1,0 +1,101 @@
+.receipt {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-s);
+  padding: 16px 18px 14px;
+  font-family: var(--font-mono);
+  font-size: var(--t-13);
+  color: var(--ink-2);
+  /* Torn bottom edge, drawn with a mask so the border stays continuous above it. */
+  -webkit-mask: linear-gradient(#000 0 0) top / 100% calc(100% - 6px) no-repeat,
+    conic-gradient(from -45deg at bottom, #0000, #000 1deg 89deg, #0000 90deg) bottom / 12px 6px repeat-x;
+  mask: linear-gradient(#000 0 0) top / 100% calc(100% - 6px) no-repeat,
+    conic-gradient(from -45deg at bottom, #0000, #000 1deg 89deg, #0000 90deg) bottom / 12px 6px repeat-x;
+  padding-bottom: 20px;
+}
+
+.title {
+  font-family: var(--font-sans);
+  font-size: var(--t-13);
+  color: var(--muted);
+  margin-bottom: 10px;
+}
+
+.lines {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+}
+
+.line {
+  display: grid;
+  grid-template-columns: auto minmax(12px, 1fr) auto auto;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.compact .line {
+  grid-template-columns: auto minmax(12px, 1fr) auto;
+}
+
+.label {
+  display: flex;
+  flex-direction: column;
+  color: var(--ink);
+  min-width: 0;
+}
+
+.formula {
+  color: var(--muted);
+  font-size: var(--t-12);
+}
+
+.leader {
+  border-bottom: 1px dotted var(--line-strong);
+  translate: 0 -4px;
+}
+
+.value {
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.total {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  align-items: baseline;
+  gap: 8px;
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid var(--ink);
+  color: var(--ink);
+  font-weight: 500;
+}
+
+.totalValue {
+  font-size: var(--t-17);
+  font-variant-numeric: tabular-nums;
+}
+
+.rule {
+  font-size: var(--t-12);
+  color: var(--accent-ink);
+  white-space: nowrap;
+}
+
+.ruleButton {
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  text-decoration: underline;
+  text-decoration-color: var(--accent-wash);
+  text-underline-offset: 3px;
+}
+
+.ruleButton:hover {
+  text-decoration-color: var(--accent);
+}
