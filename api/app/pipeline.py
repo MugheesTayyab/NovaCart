@@ -21,14 +21,24 @@ from . import calc as calc_mod
 from . import facts as facts_mod
 from .gateway import AllProvidersFailed, CallResult
 from .precedence import decide
-from .prompt import StateFilter, build_messages, check_citations, estimate_tokens, evidence_block, parse_state
+from .prompt import (
+    StateFilter,
+    build_messages,
+    estimate_tokens,
+    evidence_block,
+    parse_state,
+    plain_style,
+    resolve_sources,
+    strip_markers,
+)
 
 log = logging.getLogger("pipeline")
 
 CONTROL = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f​-‏  ﻿]")
 STATUSES = ("answered", "partial", "not_covered", "needs_info", "conflict")
 SMALL_TALK = re.compile(
-    r"^\s*(hi|hello|hey|salam|assalam[u o]?alaikum|aoa|good (morning|afternoon|evening)|thanks|thank you|thx|ok|okay)"
+    r"^\s*(hi|hello|hey|salam|assalam[u o]?alaikum|aoa|good (morning|afternoon|evening)|thanks|thank you|thx|shukriya"
+    r"|ok|okay|bye|goodbye|allah hafiz|khuda hafiz)"
     r"[\s!.,?]*(there|team|novacart)?[\s!.,?]*$",
     re.I,
 )
@@ -123,10 +133,13 @@ async def answer(app, session_id: str | None, raw_message: str, client_key: str)
         return
 
     if SMALL_TALK.match(message):
-        thanks = re.match(r"\s*(thanks|thank you|thx)", message, re.I)
-        text = ("You're welcome. Ask me anything else about a NovaCart order or policy." if thanks else
-                "Hello. Ask me about a NovaCart order or policy: returns and refunds, shipping, payments, promo codes, "
-                "warranty, privacy or marketplace sellers. Include any dates and your city if they matter.")
+        low = message.lower()
+        if re.search(r"\b(thanks|thank you|thx|shukriya)\b", low):
+            text = "You're welcome."
+        elif re.search(r"\b(bye|goodbye|allah hafiz|khuda hafiz)\b", low):
+            text = "Goodbye, take care."
+        else:
+            text = "Hello! How can I help you?"
         yield {"event": "done", "data": _reply(text, status="info", request_id=rid)}
         return
 
@@ -172,11 +185,16 @@ async def answer(app, session_id: str | None, raw_message: str, client_key: str)
                 why.setdefault(sec.id, "rule used by code")
 
     decisions = merge_decisions([asdict(d) for d in ap.decisions])
+    # The one detail to ask for, if the model has to ask: the calculation's first missing
+    # input, or else the detail that most changes a return or refund outcome.
+    ask_next = (calc.missing[0] if calc and calc.status == "needs_input" and calc.missing
+                else facts_mod.decisive_missing(f, message))
     history = list(session.history)[-2 * st.settings.chat_history_turns:] if st.settings.chat_history_turns else []
     messages = build_messages(
         question=message,
         facts={**f.public(), "contact_date": f.contact_date,
-               "contact_date_source": "stated" if f.contact_date_stated else "assumed_today"},
+               "contact_date_source": "stated" if f.contact_date_stated else "assumed_today",
+               **({"ask_next": ask_next} if ask_next else {})},
         history=history,
         evidence=evidence_block(store, ids, ap.status),
         decisions=decisions,
@@ -223,19 +241,17 @@ async def answer(app, session_id: str | None, raw_message: str, client_key: str)
     lap("llm", t)
 
     if failed:
-        listed = "\n".join(
-            f"- [Source: {store.by_id[i].filename}, Section {store.by_id[i].num}] {store.by_id[i].heading}"
-            for i in ids if ap.status.get(i, "applies") == "applies" and why[i] != "file 00 interpretation"
-        )[:3000]
-        result_line = ""
+        # Two short lines, like every answer: what happened, and the code's result if there is one.
+        # The sections that cover the question go in the source list, behind the markers.
+        relevant = [i for i in ids if ap.status.get(i, "applies") == "applies" and why[i] != "file 00 interpretation"][:4]
+        markers = "".join(f"[{n}]" for n in range(1, len(relevant) + 1))
+        text = "I can't write the full answer right now, so please try again in a minute."
         if calc and calc.status == "ok" and calc.result:
-            last = calc.steps[-1]
-            result_line = f"\n\nCalculated from the policies: {last.label} {calc.result}."
-        text = (
-            "The full answer is temporarily unavailable. These policy sections cover your question:\n\n"
-            f"{listed}{result_line}"
-        )
+            text += f"\nFrom the policies: {calc.steps[-1].label} {calc.result}. {markers}".rstrip()
+        elif relevant:
+            text += f"\nThese policy sections cover your question: {markers}"
         payload = _reply(text, status="unavailable", **meta, degraded=True)
+        payload["sources"] = [{"file": store.by_id[i].file_num, "section": store.by_id[i].num} for i in relevant]
         payload["calculation"] = [_step(s) for s in calc.steps] if calc and calc.status == "ok" else []
         log.warning("answer_degraded", extra={"request_id": rid, "timings": timings})
         yield {"event": "done", "data": payload}
@@ -251,13 +267,16 @@ async def answer(app, session_id: str | None, raw_message: str, client_key: str)
     rejected = facts_mod.apply_model_updates(f, state.get("facts") or {})
     if rejected:
         log.info("model_fact_updates_rejected", extra={"request_id": rid, "keys": rejected})
-    answer_text, flagged, cited = check_citations(raw_answer, supplied, store)
+    answer_text, flagged, cited = resolve_sources(plain_style(raw_answer), state.get("sources"), supplied, store)
     if flagged:
         log.warning("citations_not_in_evidence", extra={"request_id": rid, "count": len(flagged)})
 
     status = state.get("status") if state.get("status") in STATUSES else ("partial" if call.interrupted else "answered")
     clarifying = state.get("clarifying_question") if isinstance(state.get("clarifying_question"), str) else None
     status = consistent_status(status, answer_text, cited, clarifying)
+    # A reply that is only a clarifying question needs no sources (the prompt's SOURCES rule).
+    if status == "needs_info" and is_single_question(answer_text):
+        answer_text, cited = strip_markers(answer_text), []
     not_covered = [p for p in (state.get("not_covered_parts") or []) if isinstance(p, str)][:5]
     cited_files = {c["file"] for c in cited}
     notices = [d["reason"] + f" [file {d['rule'][:2]}, Section {d['rule'][3:]}]"
@@ -265,7 +284,7 @@ async def answer(app, session_id: str | None, raw_message: str, client_key: str)
                if d["rule"] in ("00#4.2", "00#4.4") and cited_files & {a[:2] for a in d["applies"] + d["set_aside"]}]
 
     session.history.append(("Customer", message))
-    session.history.append(("Desk", answer_text))
+    session.history.append(("Desk", strip_markers(answer_text)))
 
     payload = {
         "status": status,
@@ -303,6 +322,12 @@ async def answer(app, session_id: str | None, raw_message: str, client_key: str)
         },
     )
     yield {"event": "done", "data": payload}
+
+
+def is_single_question(answer: str) -> bool:
+    """True when the reply is one question and nothing else."""
+    text = strip_markers(answer).strip()
+    return text.endswith("?") and len(re.findall(r"[.!?](?:\s|$)", text)) == 1
 
 
 def consistent_status(status: str, answer: str, cited: list[dict], clarifying: str | None) -> str:

@@ -347,3 +347,32 @@ def apply_model_updates(facts: Facts, updates: object) -> list[str]:
         elif not ok:
             rejected.append(key)
     return rejected
+
+
+# ---------- the one detail worth asking for ----------
+
+RETURN_INTENT = re.compile(r"\b(return|refund|send (?:it |them )?back|exchange|wapas|replace(?:ment)?)\b", re.I)
+# The customer says how long it has been ("past 30 days", "40 days ago"), which settles the date question.
+ELAPSED = re.compile(
+    r"\b(?:past|over|more than|after|beyond|exceeded)\s+(?:the\s+)?\d+\s*-?\s*days?\b|\b\d+\s+days?\s+(?:ago|late|old)\b",
+    re.I,
+)
+
+
+def decisive_missing(facts: Facts, text: str) -> str | None:
+    """For a return or refund request, the single missing detail that most changes the outcome.
+
+    The route comes first (change of mind, or damaged, defective or wrong item: files 01, 07, 08),
+    unless the customer has already said the general window has passed; then the delivery region,
+    because Remote and International addenda (files 19, 20) set their own windows; then the date.
+    """
+    if not RETURN_INTENT.search(text):
+        return None
+    elapsed = bool(ELAPSED.search(text))
+    if facts.reason is None and facts.condition is None and not elapsed:
+        return "the reason for the return: changed mind, or damaged, defective or wrong item"
+    if facts.region is None and facts.location is None:
+        return "the city or country it was delivered to"
+    if facts.delivery_date is None and not elapsed:
+        return "the delivery date"
+    return None
