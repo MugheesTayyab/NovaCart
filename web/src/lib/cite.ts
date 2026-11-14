@@ -2,11 +2,11 @@
 
 export type Segment = { kind: "text"; text: string } | { kind: "ref"; file: string; section?: string; raw: string };
 
-// "[file 06, Section 2.2]" (the files' own form) or "[06_shipping_fees_and_free_shipping.md, Section 2.2]"
-// (the answer service's form, which names the actual file).
-const REF = /\[file (\d{2})(?:, Section ([\d.]+))?\]|\[(\d{2})_[a-z0-9_]+\.md, Section ([\d.]+)\]/g;
+// "[file 06, Section 2.2]" (the files' own form) or "[Source: 06_shipping_fees_and_free_shipping.md,
+// Section 2.2]" (the answer service's form, which names the actual file; "Source: " is optional).
+const REF = /\[(?:Source:\s*)?file (\d{2})(?:, Section ([\d.]+))?\]|\[(?:Source:\s*)?(\d{2})_[a-z0-9_]+\.md, Section ([\d.]+)\]/g;
 
-/** Splits text on either citation form. */
+/** Splits text on any of the citation forms. */
 export function splitCitations(text: string): Segment[] {
   const out: Segment[] = [];
   let last = 0;

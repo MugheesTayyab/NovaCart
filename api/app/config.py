@@ -136,9 +136,9 @@ def load_settings() -> Settings:
         fallback=_provider("FALLBACK", "fallback"),
         temperature=_float("LLM_TEMPERATURE", 0.0),
         max_output_tokens=_int("LLM_MAX_OUTPUT_TOKENS", 800),
-        # Groq's free tier allows about 8,000 tokens per minute on gpt-oss-120b, so the
-        # default keeps one request (input + output) well under that.
-        max_input_tokens=_int("LLM_MAX_INPUT_TOKENS", 5500),
+        # Groq's free tier allows about 8,000 tokens per minute on gpt-oss-120b; the system prompt
+        # is about 1,800 tokens, and this default keeps one request (input + output) under that.
+        max_input_tokens=_int("LLM_MAX_INPUT_TOKENS", 7200),
         request_timeout_s=_float("LLM_REQUEST_TIMEOUT_SECONDS", 30.0),
         first_token_timeout_s=_float("LLM_FIRST_TOKEN_TIMEOUT_SECONDS", 10.0),
         max_retries=_int("LLM_MAX_RETRIES", 2),
