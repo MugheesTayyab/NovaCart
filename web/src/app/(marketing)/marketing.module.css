@@ -596,3 +596,8 @@
     padding-top: 88px;
   }
 }
+
+.notice > div {
+  font-size: var(--t-13);
+  color: var(--ink-2);
+}

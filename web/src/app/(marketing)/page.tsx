@@ -117,7 +117,7 @@ export default function Home() {
             </div>
             <div className={`${styles.marked} ${styles.notice}`}>
               <Marker n={2} />
-              <p>{refund.response.meta.notices?.[0].replace(/ \[file 00, Section 4\.2\]$/, "")}</p>
+              <AnswerText text={refund.response.meta.notices?.[0] ?? ""} />
             </div>
             <div className={styles.marked}>
               <Marker n={3} />
