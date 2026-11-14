@@ -4,7 +4,7 @@
  * different shape, the API adapts to it; the UI only reads these fields.
  */
 
-export type AnswerStatus = "answered" | "partial" | "not_covered" | "needs_info" | "conflict" | "unavailable";
+export type AnswerStatus = "answered" | "partial" | "not_covered" | "needs_info" | "conflict" | "unavailable" | "info";
 
 /** Citation as used in the policy files: file number plus item, e.g. { file: "01", section: "5.3" }. */
 export type SourceRef = { file: string; section: string };
@@ -69,4 +69,5 @@ export const STATUS_LABEL: Record<AnswerStatus, string> = {
   needs_info: "Needs one detail",
   conflict: "Files disagree",
   unavailable: "Answer unavailable",
+  info: "", // greetings and other non-policy replies carry no status badge
 };

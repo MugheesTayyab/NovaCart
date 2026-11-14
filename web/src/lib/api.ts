@@ -6,7 +6,15 @@ export type AskResult =
   | { ok: true; response: AskResponse; ms: number }
   | { ok: false; kind: "preview-miss" | "network" | "server" | "timeout"; message: string };
 
+/** Sent by the answer service before the model call: the evidence it is using. */
+export type StreamMeta = {
+  evidence?: { id: string; status: string; why: string }[];
+  contact_date?: string;
+};
+
 export type StreamHandlers = {
+  /** What the answer will be built from, before any text arrives. */
+  onMeta?: (meta: StreamMeta) => void;
   /** Answer text as it arrives. */
   onToken?: (text: string) => void;
 };
@@ -73,7 +81,8 @@ export async function ask(question: string, handlers: StreamHandlers = {}, timeo
           .join("\n");
         if (!event || !data) continue;
         const parsed = JSON.parse(data);
-        if (event === "token") handlers.onToken?.(parsed as string);
+        if (event === "meta") handlers.onMeta?.(parsed as StreamMeta);
+        else if (event === "token") handlers.onToken?.(parsed as string);
         else if (event === "done") final = parsed as AskResponse;
       }
     }
