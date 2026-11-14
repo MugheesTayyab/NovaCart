@@ -723,6 +723,176 @@
   }
 }
 
+/* ---------- chat layout: replies sit beside the desk's mark, like a chat ---------- */
+
+.deskRow {
+  display: grid;
+  grid-template-columns: 26px minmax(0, 1fr);
+  gap: 10px;
+  align-items: start;
+  max-width: 92%;
+}
+
+.avatar {
+  position: relative;
+  width: 26px;
+  height: 26px;
+  margin-top: 2px;
+  border-radius: 50%;
+  background: var(--ink);
+  animation: fade 240ms var(--ease) both;
+}
+
+.avatar::before {
+  content: "";
+  position: absolute;
+  inset: 8px;
+  border: 1.5px solid var(--paper);
+  border-radius: 50%;
+}
+
+.avatar::after {
+  content: "";
+  position: absolute;
+  width: 6px;
+  height: 6px;
+  right: 6px;
+  top: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+
+.desk {
+  border-top-left-radius: var(--r-xs);
+}
+
+.customer {
+  border-top-right-radius: var(--r-xs);
+}
+
+.hello {
+  display: grid;
+  grid-template-columns: 26px minmax(0, 1fr);
+  gap: 10px;
+  max-width: 92%;
+  margin-bottom: 8px;
+}
+
+.hello p {
+  padding: 10px 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-m);
+  border-top-left-radius: var(--r-xs);
+  background: var(--surface);
+  color: var(--ink-2);
+  animation: print 520ms var(--ease) both;
+}
+
+/* ---------- header buttons ---------- */
+
+.headActions {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.textBtn,
+.iconBtn {
+  height: 30px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-s);
+  background: var(--surface);
+  color: var(--ink-2);
+  font: inherit;
+  font-size: var(--t-12);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: border-color 160ms var(--ease), color 160ms var(--ease), background-color 160ms var(--ease);
+}
+
+.textBtn:hover:not(:disabled),
+.iconBtn:hover:not(:disabled) {
+  border-color: var(--ink-2);
+  color: var(--ink);
+}
+
+.textBtn[aria-pressed="true"] {
+  background: var(--sunk);
+  color: var(--ink);
+}
+
+.textBtn:disabled,
+.iconBtn:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.evClose {
+  margin-left: auto;
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: var(--r-s);
+  background: none;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.evClose:hover {
+  background: var(--sunk);
+  color: var(--ink);
+}
+
+/* ---------- widget: the same desk inside the site's chat window ---------- */
+
+.workspace[data-variant="widget"] {
+  position: relative;
+  height: 100%;
+  grid-template-columns: minmax(0, 1fr) 0px;
+  transition: grid-template-columns 320ms var(--ease);
+}
+
+.workspace[data-variant="widget"][data-evidence="open"] {
+  grid-template-columns: minmax(0, 1fr) 352px;
+}
+
+.workspace[data-variant="widget"] .convo {
+  min-height: 0;
+}
+
+.workspace[data-variant="widget"] .head {
+  padding: 0 14px 0 20px;
+}
+
+.workspace[data-variant="widget"] .thread {
+  padding: 20px 24px 24px;
+}
+
+.workspace[data-variant="widget"] .composer {
+  position: static;
+  padding: 10px 24px 14px;
+}
+
+.workspace[data-variant="widget"] .column {
+  max-width: 820px;
+}
+
+.workspace[data-variant="widget"][data-evidence="closed"] .evidence {
+  visibility: hidden;
+}
+
+.workspace[data-variant="widget"] .evidence {
+  border-left: 1px solid var(--line);
+  border-top: 0;
+}
+
 /* ---------- small screens ---------- */
 
 @media (max-width: 1100px) {
@@ -758,5 +928,35 @@
   }
   .customer {
     max-width: 88%;
+  }
+  .deskRow,
+  .hello {
+    max-width: 100%;
+  }
+  .iconBtn span {
+    display: none;
+  }
+}
+
+/* In a narrow window the evidence slides over the chat instead of beside it. */
+@media (max-width: 1000px) {
+  .workspace[data-variant="widget"],
+  .workspace[data-variant="widget"][data-evidence="open"] {
+    grid-template-columns: minmax(0, 1fr) 0px;
+    height: 100%;
+  }
+  .workspace[data-variant="widget"] .evidence {
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: min(352px, 100%);
+    box-shadow: var(--shadow-2);
+    translate: 100% 0;
+    transition: translate 320ms var(--ease), visibility 0s linear 320ms;
+  }
+  .workspace[data-variant="widget"][data-evidence="open"] .evidence {
+    translate: 0 0;
+    transition: translate 320ms var(--ease);
   }
 }

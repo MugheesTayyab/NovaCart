@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useRouter } from "next/navigation";
 import styles from "./AskWorkspace.module.css";
 import { AnswerText } from "@/components/AnswerText";
 import { Receipt } from "@/components/Receipt";
@@ -22,8 +23,50 @@ type Exchange = {
 };
 type Tab = "sources" | "rules" | "math" | "run";
 
-export function AskWorkspace({ items, files }: { items: Record<string, IndexedItem>; files: FileMeta[] }) {
+/** The conversation is kept for this browser tab, so the window and the full page share it. */
+const THREAD_KEY = "policy-desk-thread";
+
+function loadThread(): Exchange[] {
+  try {
+    const raw = window.sessionStorage.getItem(THREAD_KEY);
+    const saved = raw ? (JSON.parse(raw) as Exchange[]) : [];
+    return Array.isArray(saved) ? saved.filter((e) => e && e.result) : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveThread(thread: Exchange[]) {
+  try {
+    const done = thread.filter((e) => e.result).map((e) => ({ ...e, streamed: undefined, meta: undefined }));
+    window.sessionStorage.setItem(THREAD_KEY, JSON.stringify(done.slice(-30)));
+  } catch {
+    /* Storage full or disabled: the conversation is simply not carried over. */
+  }
+}
+
+export function AskWorkspace({
+  items,
+  files,
+  variant = "desk",
+  title,
+  actions,
+  request,
+}: {
+  /** Asks a sample question when it changes (the site's "Ask this in the chat" links). */
+  request?: { sampleId: string; n: number };
+  items: Record<string, IndexedItem>;
+  files: FileMeta[];
+  /** "desk" is the full page; "widget" is the chat window on the site. */
+  variant?: "desk" | "widget";
+  title?: ReactNode;
+  /** Header buttons, told whether an answer is still arriving. */
+  actions?: (busy: boolean) => ReactNode;
+}) {
+  const widget = variant === "widget";
+  const router = useRouter();
   const [thread, setThread] = useState<Exchange[]>([]);
+  const [evidenceOpen, setEvidenceOpen] = useState(!widget);
   const [selected, setSelected] = useState<number | null>(null);
   const [draft, setDraft] = useState("");
   const [tab, setTab] = useState<Tab>("sources");
@@ -37,16 +80,41 @@ export function AskWorkspace({ items, files }: { items: Record<string, IndexedIt
     endRef.current?.scrollIntoView({ block: "end", behavior: "smooth" });
   }, [thread.length, last?.streamed?.length, last?.result]);
 
-  // /app?sample=<id> opens a sample answer directly (used by links from the site and the demo video).
+  // Picks up the conversation from the other view, then /app?sample=<id> opens a sample
+  // answer directly (used by links from the site and the demo video).
   const opened = useRef(false);
+  const restored = useRef(false);
   useEffect(() => {
     if (opened.current) return;
     opened.current = true;
+    const saved = loadThread();
+    if (saved.length) {
+      nextId.current = Math.max(...saved.map((e) => e.id)) + 1;
+      setThread(saved);
+      setSelected(saved[saved.length - 1].id);
+    }
+    restored.current = true;
     const id = new URLSearchParams(window.location.search).get("sample");
     const sample = SAMPLES.find((s) => s.id === id);
     if (sample) send(sample.question, { sampleId: sample.id });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    if (restored.current) saveThread(thread);
+  }, [thread]);
+
+  useEffect(() => {
+    const sample = SAMPLES.find((s) => s.id === request?.sampleId);
+    if (sample) send(sample.question, { sampleId: sample.id });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [request?.n]);
+
+  function clear() {
+    setThread([]);
+    setSelected(null);
+    setActive(null);
+  }
 
   function patch(id: number, fn: (e: Exchange) => Exchange) {
     setThread((t) => t.map((e) => (e.id === id ? fn(e) : e)));
@@ -74,24 +142,72 @@ export function AskWorkspace({ items, files }: { items: Record<string, IndexedIt
   function cite(id: string) {
     setActive(id);
     setTab("sources");
+    setEvidenceOpen(true);
   }
 
   const current = thread.find((e) => e.id === selected) ?? null;
   const response = current?.result?.ok ? current.result.response : null;
 
   return (
-    <div className={styles.workspace}>
+    <div className={styles.workspace} data-variant={variant} data-evidence={evidenceOpen ? "open" : "closed"}>
       <section className={styles.convo} aria-label="Conversation">
         <header className={styles.head}>
-          <h1>Ask</h1>
-          <p>Paste the customer&apos;s message as written, with any dates they mention.</p>
+          {title ?? (
+            <>
+              <h1>Ask</h1>
+              <p>Paste the customer&apos;s message as written, with any dates they mention.</p>
+            </>
+          )}
+          <div className={styles.headActions}>
+            {thread.length > 0 && (
+              <button type="button" className={styles.textBtn} onClick={clear} disabled={busy}>
+                New chat
+              </button>
+            )}
+            {widget && (
+              <button
+                type="button"
+                className={styles.textBtn}
+                aria-pressed={evidenceOpen}
+                onClick={() => setEvidenceOpen((o) => !o)}
+              >
+                {evidenceOpen ? "Hide evidence" : "Show evidence"}
+              </button>
+            )}
+            {actions?.(busy)}
+            {!widget && (
+              <button
+                type="button"
+                className={styles.iconBtn}
+                disabled={busy}
+                onClick={() => router.push("/?chat=open")}
+                title={busy ? "Available when the answer finishes" : "Open as a window on the site"}
+                aria-label="Open as a window on the site"
+              >
+                <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">
+                  <rect x="2.5" y="5.5" width="8" height="8" rx="1.5" fill="none" stroke="currentColor" strokeWidth="1.4" />
+                  <path d="M5.5 3.5V3a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 .5.5v7a.5.5 0 0 1-.5.5h-.5" fill="none" stroke="currentColor" strokeWidth="1.4" />
+                </svg>
+                <span>Open as window</span>
+              </button>
+            )}
+          </div>
         </header>
 
         <div className={styles.thread}>
           <div className={styles.column}>
+            {thread.length === 0 && widget && (
+              <div className={styles.hello}>
+                <span className={styles.avatar} aria-hidden="true" />
+                <p>
+                  Hi. Ask about a return, refund, delivery fee, payment or warranty. Mention your city and the dates if
+                  you know them, and the answer can be exact. Every answer cites the policy section it comes from.
+                </p>
+              </div>
+            )}
             {thread.length === 0 && (
               <div className={styles.samples}>
-                <h2>Sample questions</h2>
+                <h2>{widget ? "Or start from one of these" : "Sample questions"}</h2>
                 <ul>
                   {SAMPLES.map((s, i) => (
                     <li key={s.id} style={{ ["--i" as string]: i }}>
@@ -112,9 +228,11 @@ export function AskWorkspace({ items, files }: { items: Record<string, IndexedIt
                 onClick={() => setSelected(e.id)}
               >
                 <div className={styles.customer}>
-                  <p className={styles.who}>Customer</p>
+                  <p className={styles.who}>{widget ? "You" : "Customer"}</p>
                   <p>{e.question}</p>
                 </div>
+                <div className={styles.deskRow}>
+                <span className={styles.avatar} aria-hidden="true" />
                 <div className={styles.desk} data-state={e.result ? "done" : e.streamed ? "streaming" : "thinking"}>
                   <p className={styles.who}>
                     Policy Desk
@@ -157,6 +275,7 @@ export function AskWorkspace({ items, files }: { items: Record<string, IndexedIt
                     </>
                   )}
                 </div>
+                </div>
               </article>
             ))}
             <div ref={endRef} />
@@ -179,7 +298,11 @@ export function AskWorkspace({ items, files }: { items: Record<string, IndexedIt
                 id="q"
                 rows={1}
                 value={draft}
-                placeholder="e.g. Today is 2026-09-01. I live in Multan. Is shipping free on a Rs. 6,000 order?"
+                placeholder={
+                  widget
+                    ? "Ask about a return, refund, delivery or warranty"
+                    : "e.g. Today is 2026-09-01. I live in Multan. Is shipping free on a Rs. 6,000 order?"
+                }
                 onChange={(ev) => setDraft(ev.target.value)}
                 onKeyDown={(ev) => {
                   if (ev.key === "Enter" && !ev.shiftKey) {
@@ -205,8 +328,20 @@ export function AskWorkspace({ items, files }: { items: Record<string, IndexedIt
         setTab={setTab}
         active={active}
         onCite={cite}
+        onClose={widget ? () => setEvidenceOpen(false) : undefined}
       />
     </div>
+  );
+}
+
+function EvidenceClose({ onClose }: { onClose?: () => void }) {
+  if (!onClose) return null;
+  return (
+    <button type="button" className={styles.evClose} onClick={onClose} aria-label="Hide evidence">
+      <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">
+        <path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+      </svg>
+    </button>
   );
 }
 
@@ -296,7 +431,9 @@ function Evidence({
   setTab,
   active,
   onCite,
+  onClose,
 }: {
+  onClose?: () => void;
   response: AskResponse | null;
   ms?: number;
   items: Record<string, IndexedItem>;
@@ -316,6 +453,7 @@ function Evidence({
       <aside className={styles.evidence} aria-label="Evidence">
         <div className={styles.evHead}>
           <h2>Evidence</h2>
+          <EvidenceClose onClose={onClose} />
         </div>
         <div className={styles.evEmpty}>
           <p>
@@ -344,6 +482,7 @@ function Evidence({
       <div className={styles.evHead}>
         <h2>Evidence</h2>
         <StatusLabel status={response.status} />
+        <EvidenceClose onClose={onClose} />
       </div>
 
       {slots.length > 0 && (
