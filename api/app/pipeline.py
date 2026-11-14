@@ -27,6 +27,11 @@ log = logging.getLogger("pipeline")
 
 CONTROL = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f​-‏  ﻿]")
 STATUSES = ("answered", "partial", "not_covered", "needs_info", "conflict")
+SMALL_TALK = re.compile(
+    r"^\s*(hi|hello|hey|salam|assalam[u o]?alaikum|aoa|good (morning|afternoon|evening)|thanks|thank you|thx|ok|okay)"
+    r"[\s!.,?]*(there|team|novacart)?[\s!.,?]*$",
+    re.I,
+)
 REGION_LABEL = {
     "metro": "a Metro city",
     "rest_of_pakistan": "Rest of Pakistan",
@@ -117,6 +122,14 @@ async def answer(app, session_id: str | None, raw_message: str, client_key: str)
             "with the main question first.", status="needs_info", request_id=rid)}
         return
 
+    if SMALL_TALK.match(message):
+        thanks = re.match(r"\s*(thanks|thank you|thx)", message, re.I)
+        text = ("You're welcome. Ask me anything else about a NovaCart order or policy." if thanks else
+                "Hello. Ask me about a NovaCart order or policy: returns and refunds, shipping, payments, promo codes, "
+                "warranty, privacy or marketplace sellers. Include any dates and your city if they matter.")
+        yield {"event": "done", "data": _reply(text, status="info", request_id=rid)}
+        return
+
     session = st.sessions.get(session_id)
 
     # ---- facts ----
@@ -162,7 +175,8 @@ async def answer(app, session_id: str | None, raw_message: str, client_key: str)
     history = list(session.history)[-2 * st.settings.chat_history_turns:] if st.settings.chat_history_turns else []
     messages = build_messages(
         question=message,
-        facts={**f.public(), "contact_date": f.contact_date},
+        facts={**f.public(), "contact_date": f.contact_date,
+               "contact_date_source": "stated" if f.contact_date_stated else "assumed_today"},
         history=history,
         evidence=evidence_block(store, ids, ap.status),
         decisions=decisions,
@@ -210,7 +224,7 @@ async def answer(app, session_id: str | None, raw_message: str, client_key: str)
 
     if failed:
         listed = "\n".join(
-            f"- [{store.by_id[i].filename}, Section {store.by_id[i].num}] {store.by_id[i].heading}"
+            f"- [Source: {store.by_id[i].filename}, Section {store.by_id[i].num}] {store.by_id[i].heading}"
             for i in ids if ap.status.get(i, "applies") == "applies" and why[i] != "file 00 interpretation"
         )[:3000]
         result_line = ""
@@ -243,9 +257,12 @@ async def answer(app, session_id: str | None, raw_message: str, client_key: str)
 
     status = state.get("status") if state.get("status") in STATUSES else ("partial" if call.interrupted else "answered")
     clarifying = state.get("clarifying_question") if isinstance(state.get("clarifying_question"), str) else None
+    status = consistent_status(status, answer_text, cited, clarifying)
     not_covered = [p for p in (state.get("not_covered_parts") or []) if isinstance(p, str)][:5]
+    cited_files = {c["file"] for c in cited}
     notices = [d["reason"] + f" [file {d['rule'][:2]}, Section {d['rule'][3:]}]"
-               for d in decisions if d["rule"] in ("00#4.2", "00#4.4")]
+               for d in decisions
+               if d["rule"] in ("00#4.2", "00#4.4") and cited_files & {a[:2] for a in d["applies"] + d["set_aside"]}]
 
     session.history.append(("Customer", message))
     session.history.append(("Desk", answer_text))
@@ -286,6 +303,20 @@ async def answer(app, session_id: str | None, raw_message: str, client_key: str)
         },
     )
     yield {"event": "done", "data": payload}
+
+
+def consistent_status(status: str, answer: str, cited: list[dict], clarifying: str | None) -> str:
+    """The badge must agree with what the customer reads."""
+    low = answer.lower()
+    says_not_covered = "this is not covered" in low or "is not covered" in low
+    asks = answer.rstrip().endswith("?")
+    if status == "needs_info" and not (clarifying or asks):
+        status = "not_covered" if says_not_covered and not cited else "answered"
+    if status in ("answered", "conflict") and says_not_covered:
+        status = "partial" if cited else "not_covered"
+    if status == "not_covered" and cited and not says_not_covered:
+        status = "answered"
+    return status
 
 
 def merge_decisions(decisions: list[dict]) -> list[dict]:
