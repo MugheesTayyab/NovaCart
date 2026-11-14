@@ -13,7 +13,7 @@
   --muted: #8a8e95;
   --line: #e2e2de;
   --line-strong: #c9c9c3;
-  --grid: rgb(14 15 17 / 0.05);
+  --grid: rgb(14 15 17 / 0.04);
 
   --accent: #2b44ff;
   --accent-ink: #1a2fd8;
@@ -22,23 +22,27 @@
   --signal-ink: #b2441a;
   --signal-wash: #fcede6;
 
-  --font-sans: var(--font-hanken), "Helvetica Neue", Arial, sans-serif;
-  --font-mono: var(--font-plex-mono), ui-monospace, "Cascadia Mono", monospace;
+  /* One typeface across the product. "Mono" contexts use the same face with tabular figures. */
+  --font-sans: var(--font-plex), "Helvetica Neue", Arial, sans-serif;
+  --font-mono: var(--font-plex), "Helvetica Neue", Arial, sans-serif;
 
+  --r-xs: 4px;
   --r-s: 6px;
-  --r-m: 10px;
+  --r-m: 8px;
   --r-pill: 999px;
+  --bar: 60px;
 
   --shadow-1: 0 1px 2px rgb(14 15 17 / 0.06), 0 1px 1px rgb(14 15 17 / 0.04);
   --shadow-2: 0 6px 16px -6px rgb(14 15 17 / 0.12), 0 1px 2px rgb(14 15 17 / 0.06);
 
-  --t-12: 0.75rem;
-  --t-13: 0.8125rem;
-  --t-15: 0.9375rem;
-  --t-17: 1.0625rem;
-  --t-21: 1.3125rem;
-  --t-28: 1.75rem;
-  --t-40: 2.5rem;
+  --t-11: 0.6875rem;
+  --t-12: 0.71875rem;
+  --t-13: 0.78125rem;
+  --t-15: 0.875rem;
+  --t-17: 1rem;
+  --t-21: 1.1875rem;
+  --t-28: 1.5rem;
+  --t-40: 2.125rem;
 
   --ease: cubic-bezier(0.2, 0.7, 0.2, 1);
   --measure: 1200px;
@@ -97,6 +101,7 @@ code,
 kbd,
 .mono {
   font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
 }
 
 ::selection {
