@@ -133,6 +133,9 @@ export default function Home() {
                 ))}
               </ol>
             </div>
+            <Link href={`/app?sample=${refund.id}`} className={styles.open}>
+              Open this answer in the desk, with every source
+            </Link>
           </article>
           <ol className={styles.notes}>
             <li>
@@ -184,6 +187,9 @@ export default function Home() {
                   ))}
                 </tbody>
               </table>
+              <Link href={`/app?sample=${ask.id}`} className={styles.open}>
+                Open this case in the desk
+              </Link>
             </div>
           </div>
           <div className={styles.caseRow}>
@@ -191,6 +197,9 @@ export default function Home() {
             <p className={styles.caseQ}>{partial.question}</p>
             <div className={styles.caseA}>
               <AnswerText text={partial.response.answer} />
+              <Link href={`/app?sample=${partial.id}`} className={styles.open}>
+                Open this case in the desk
+              </Link>
             </div>
           </div>
           <div className={styles.caseRow}>
@@ -198,6 +207,9 @@ export default function Home() {
             <p className={styles.caseQ}>{conflict.question}</p>
             <div className={styles.caseA}>
               <AnswerText text={conflict.response.answer.split("\n\n").slice(0, 2).join("\n\n")} />
+              <Link href={`/app?sample=${conflict.id}`} className={styles.open}>
+                Open this case in the desk
+              </Link>
             </div>
           </div>
         </div>

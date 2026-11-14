@@ -601,3 +601,15 @@
   font-size: var(--t-13);
   color: var(--ink-2);
 }
+
+.open {
+  justify-self: start;
+  font-size: var(--t-13);
+  color: var(--accent-ink);
+  text-underline-offset: 3px;
+  text-decoration-color: var(--accent-wash);
+}
+
+.open:hover {
+  text-decoration-color: var(--accent);
+}
