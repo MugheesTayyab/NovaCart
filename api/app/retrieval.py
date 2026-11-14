@@ -79,7 +79,7 @@ class Retriever:
         st = self.store
         ev = Evidence()
         # "cash on delivery fee" is a COD question, not a delivery-fee question.
-        query_text = expand_synonyms(re.sub(r"cash on delivery", "cod", norm))
+        query_text = expand_synonyms(re.sub(r"\bcash on delivery\b", "cod", norm))
         query = tokenize(query_text)
 
         def add(sections: list[Section], why: str) -> None:
@@ -147,7 +147,7 @@ class Retriever:
             needs.append("dates")
         if facts.region:
             needs.append(facts.region)
-        elif re.search(r"(city|region|area|country|deliver(ed|y)? to|live in)", norm):
+        elif re.search(r"\b(city|region|area|country|deliver(ed|y)? to|live in)\b", norm):
             needs.append("place_unknown")
         if facts.category:
             needs.append("category")
@@ -155,7 +155,7 @@ class Retriever:
             needs.append("seller")
         if facts.promo_codes:
             needs.append("promo")
-        if re.search(r"(shipping|total|checkout|freeship|payable)", query_text):
+        if re.search(r"\b(shipping|total|checkout|freeship|payable)\b", query_text):
             needs.append("checkout")
         for need in needs:
             for ref in registry.INTERPRETATION[need]:
