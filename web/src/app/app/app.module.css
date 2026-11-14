@@ -1,6 +1,6 @@
 .shell {
   display: grid;
-  grid-template-columns: 240px minmax(0, 1fr);
+  grid-template-columns: 208px minmax(0, 1fr);
   min-height: 100vh;
   background: var(--paper);
 }
@@ -11,24 +11,28 @@
   height: 100vh;
   display: flex;
   flex-direction: column;
-  gap: 28px;
-  padding: 20px 16px;
+  gap: 12px;
+  padding: 0 12px 12px;
   border-right: 1px solid var(--line);
   background: var(--surface);
 }
 
 .brand {
-  display: inline-flex;
+  display: flex;
   align-items: center;
   gap: 10px;
-  padding: 4px 8px;
+  height: var(--bar);
+  margin: 0 -12px;
+  padding: 0 20px;
+  border-bottom: 1px solid var(--line);
+  font-size: var(--t-15);
   font-weight: 600;
   text-decoration: none;
 }
 
 .mark {
-  width: 18px;
-  height: 18px;
+  width: 16px;
+  height: 16px;
   border: 1.5px solid var(--ink);
   border-radius: 50%;
   position: relative;
@@ -52,7 +56,8 @@
 
 .navLink {
   display: grid;
-  padding: 8px 10px;
+  padding: 7px 10px;
+  font-size: var(--t-13);
   border-radius: var(--r-s);
   text-decoration: none;
   color: var(--ink-2);
@@ -73,16 +78,16 @@
 }
 
 .navHint {
-  font-size: var(--t-12);
+  font-size: var(--t-11);
   color: var(--muted);
 }
 
 .conn {
   margin-top: auto;
-  padding: 12px;
+  padding: 10px 12px;
   border: 1px dashed var(--line-strong);
   border-radius: var(--r-s);
-  font-size: var(--t-12);
+  font-size: var(--t-11);
   color: var(--ink-2);
   display: grid;
   gap: 4px;
