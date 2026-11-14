@@ -27,7 +27,8 @@ export type AskRequest = {
 
 export type AskResponse = {
   status: AnswerStatus;
-  /** Customer-facing text. Citations are inline as [NN_file.md, Section X] or [file NN, Section X]. */
+  /** Customer-facing text, at most two lines. "[n]" markers point at sources[n - 1]; the long forms
+   *  [NN_file.md, Section X] and [file NN, Section X] are also accepted (numbered in order). */
   answer: string;
   sources: SourceRef[];
   calculation: CalcStep[];

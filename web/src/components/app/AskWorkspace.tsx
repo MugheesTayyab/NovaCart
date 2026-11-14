@@ -7,7 +7,8 @@ import { AnswerText } from "@/components/AnswerText";
 import { Receipt } from "@/components/Receipt";
 import { PolicyBlocks } from "@/components/PolicyBlocks";
 import { ask, type AskResult, type StreamMeta } from "@/lib/api";
-import { fileStates, refId, shortRef, type FileMeta } from "@/lib/cite";
+import { fileStates, parseAnswer, refId, shortRef, type FileMeta } from "@/lib/cite";
+import { PolicyItemsProvider } from "@/components/SourceMenu";
 import { STATUS_LABEL, type AskResponse } from "@/lib/contract";
 import { SAMPLES } from "@/lib/samples";
 import type { IndexedItem } from "@/lib/policies";
@@ -149,6 +150,7 @@ export function AskWorkspace({
   const response = current?.result?.ok ? current.result.response : null;
 
   return (
+    <PolicyItemsProvider items={items}>
     <div className={styles.workspace} data-variant={variant} data-evidence={evidenceOpen ? "open" : "closed"}>
       <section className={styles.convo} aria-label="Conversation">
         <header className={styles.head}>
@@ -234,10 +236,7 @@ export function AskWorkspace({
                 <div className={styles.deskRow}>
                 <span className={styles.avatar} aria-hidden="true" />
                 <div className={styles.desk} data-state={e.result ? "done" : e.streamed ? "streaming" : "thinking"}>
-                  <p className={styles.who}>
-                    Policy Desk
-                    {e.result?.ok && <StatusLabel status={e.result.response.status} />}
-                  </p>
+                  <p className={styles.who}>Policy Desk</p>
                   {e.result === null && !e.streamed && <FileScan files={files} meta={e.meta} startedAt={e.startedAt} />}
                   {e.result === null && e.streamed && (
                     <div className={styles.streaming}>
@@ -258,12 +257,27 @@ export function AskWorkspace({
                     <>
                       <AnswerText
                         text={e.result.response.answer}
+                        sources={e.result.response.sources}
                         onCite={(id) => {
                           setSelected(e.id);
                           cite(id);
                         }}
                         active={e.id === selected ? active : null}
                       />
+                      {e.result.response.calculation.length > 0 && (
+                        <button
+                          type="button"
+                          className={styles.working}
+                          onClick={(ev) => {
+                            ev.stopPropagation();
+                            setSelected(e.id);
+                            setTab("math");
+                            setEvidenceOpen(true);
+                          }}
+                        >
+                          See the working, {e.result.response.calculation.length} steps
+                        </button>
+                      )}
                       {e.result.response.status === "needs_info" && (
                         <QuickReplies
                           exchange={e}
@@ -331,6 +345,7 @@ export function AskWorkspace({
         onClose={widget ? () => setEvidenceOpen(false) : undefined}
       />
     </div>
+    </PolicyItemsProvider>
   );
 }
 
@@ -468,7 +483,9 @@ function Evidence({
   const m = response.meta;
   const states = m.contact_date ? fileStates(files, m.contact_date) : null;
   const count = (st: string) => (states ? Object.values(states).filter((s) => s.state === st).length : 0);
-  const sourceIds = [...new Set(response.sources.map((s) => refId(s.file, s.section)))];
+  // The same numbers as the markers in the answer; any other listed source follows unnumbered.
+  const numbered = parseAnswer(response.answer, response.sources).refs;
+  const sourceIds = [...new Set([...numbered, ...response.sources.map((s) => refId(s.file, s.section))])];
   const slots = Object.entries(m.slots ?? {});
   const tabs: [Tab, string, number | null][] = [
     ["sources", "Sources", sourceIds.length],
@@ -509,7 +526,7 @@ function Evidence({
           </p>
           {m.notices?.map((n) => (
             <div key={n} className={styles.notice}>
-              <AnswerText text={n} onCite={onCite} active={active} />
+              <AnswerText text={n} onCite={onCite} active={active} chips />
             </div>
           ))}
         </div>
@@ -560,6 +577,7 @@ function Evidence({
                 return (
                   <li key={id} ref={active === id ? activeRef : undefined} className={active === id ? styles.on : undefined}>
                     <button type="button" className={styles.sourceHead} onClick={() => onCite(id)}>
+                      {numbered.includes(id) && <span className={styles.sourceNum}>{numbered.indexOf(id) + 1}</span>}
                       <span className={styles.sourceName}>{it ? `${it.fileName}, Section ${it.num}` : shortRef(id)}</span>
                       {it && <span className={styles.sectionTitle}>{it.sectionTitle}</span>}
                     </button>

@@ -19,6 +19,50 @@ export function splitCitations(text: string): Segment[] {
   return out;
 }
 
+export type AnswerPart =
+  | { kind: "text"; text: string }
+  /** A numbered source marker. `id` is null while the answer is still arriving. */
+  | { kind: "marker"; n: number; id: string | null };
+
+// A marker "[1]" (the answer service's form), or one of the long forms above.
+const MARK = /\[(\d{1,2})\]|\[(?:Source:\s*)?file (\d{2})(?:, Section ([\d.]+))?\]|\[(?:Source:\s*)?(\d{2})_[a-z0-9_]+\.md, Section ([\d.]+)\]/g;
+
+/**
+ * Splits an answer into lines of text and numbered markers. "[n]" is sources[n - 1];
+ * long citations (the hand-checked samples) are numbered in order of first appearance.
+ * Also returns the ids in marker order, so a source list can carry the same numbers.
+ */
+export function parseAnswer(text: string, sources?: SourceRefLike[]): { lines: AnswerPart[][]; refs: string[] } {
+  const refs: string[] = [];
+  const lines = text
+    .split(/\n+/)
+    .filter((l) => l.trim())
+    .map((line) => {
+      const out: AnswerPart[] = [];
+      let last = 0;
+      for (const m of line.matchAll(MARK)) {
+        if (m.index! > last) out.push({ kind: "text", text: line.slice(last, m.index) });
+        last = m.index! + m[0].length;
+        if (m[1]) {
+          const n = Number(m[1]);
+          const src = sources?.[n - 1];
+          const id = src ? refId(src.file, src.section) : null;
+          if (id && !refs.includes(id)) refs[n - 1] = id;
+          out.push({ kind: "marker", n, id });
+        } else {
+          const id = refId(m[2] ?? m[4], m[3] ?? m[5]);
+          if (!refs.includes(id)) refs.push(id);
+          out.push({ kind: "marker", n: refs.indexOf(id) + 1, id });
+        }
+      }
+      if (last < line.length) out.push({ kind: "text", text: line.slice(last) });
+      return out;
+    });
+  return { lines, refs: refs.filter(Boolean) };
+}
+
+type SourceRefLike = { file: string; section?: string };
+
 export function refId(file: string, section?: string) {
   return section ? `${file}#${section}` : file;
 }

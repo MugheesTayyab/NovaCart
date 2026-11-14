@@ -960,3 +960,47 @@
     transition: translate 320ms var(--ease);
   }
 }
+
+/* ---------- short answers: the working and the sources sit one tap away ---------- */
+
+.working {
+  margin-top: 8px;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: var(--t-12);
+  color: var(--accent-ink);
+  text-decoration: underline;
+  text-decoration-color: var(--accent-wash);
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+.working:hover {
+  text-decoration-color: var(--accent);
+}
+
+.sourceHead {
+  grid-template-columns: auto minmax(0, 1fr);
+  column-gap: 8px;
+  align-items: start;
+}
+
+.sourceHead > span:not(.sourceNum) {
+  grid-column: 2;
+}
+
+.sourceNum {
+  grid-row: span 2;
+  display: grid;
+  place-items: center;
+  min-width: 20px;
+  height: 20px;
+  border-radius: var(--r-xs);
+  background: var(--accent);
+  color: var(--surface);
+  font-size: var(--t-11);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
