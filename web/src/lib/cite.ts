@@ -2,15 +2,17 @@
 
 export type Segment = { kind: "text"; text: string } | { kind: "ref"; file: string; section?: string; raw: string };
 
-const REF = /\[file (\d{2})(?:, Section ([\d.]+))?\]/g;
+// "[file 06, Section 2.2]" (the files' own form) or "[06_shipping_fees_and_free_shipping.md, Section 2.2]"
+// (the answer service's form, which names the actual file).
+const REF = /\[file (\d{2})(?:, Section ([\d.]+))?\]|\[(\d{2})_[a-z0-9_]+\.md, Section ([\d.]+)\]/g;
 
-/** Splits text on the corpus citation form "[file NN, Section X]". */
+/** Splits text on either citation form. */
 export function splitCitations(text: string): Segment[] {
   const out: Segment[] = [];
   let last = 0;
   for (const m of text.matchAll(REF)) {
     if (m.index! > last) out.push({ kind: "text", text: text.slice(last, m.index) });
-    out.push({ kind: "ref", file: m[1], section: m[2], raw: m[0] });
+    out.push({ kind: "ref", file: m[1] ?? m[3], section: m[2] ?? m[4], raw: m[0] });
     last = m.index! + m[0].length;
   }
   if (last < text.length) out.push({ kind: "text", text: text.slice(last) });

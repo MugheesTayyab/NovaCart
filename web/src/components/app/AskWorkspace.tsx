@@ -11,7 +11,7 @@ import { STATUS_LABEL, type AskResponse } from "@/lib/contract";
 import { SAMPLES } from "@/lib/samples";
 import type { IndexedItem } from "@/lib/policies";
 
-type Exchange = { id: number; question: string; result: AskResult | null; sampleId?: string };
+type Exchange = { id: number; question: string; result: AskResult | null; sampleId?: string; streamed?: string };
 type Tab = "sources" | "rules" | "math" | "run";
 
 export function AskWorkspace({ items, files }: { items: Record<string, IndexedItem>; files: FileMeta[] }) {
@@ -48,17 +48,13 @@ export function AskWorkspace({ items, files }: { items: Record<string, IndexedIt
     setActive(null);
     setTab("sources");
     setDraft("");
-    const history = thread.flatMap((e) =>
-      e.result?.ok
-        ? [
-            { role: "customer" as const, text: e.question },
-            { role: "desk" as const, text: e.result.response.answer },
-          ]
-        : [],
-    );
+    // The answer service keeps this tab's conversation by session id, so no history is sent.
     const result: AskResult = opts?.preset
       ? { ok: true, response: opts.preset, ms: 0 }
-      : await ask({ question: q, history });
+      : await ask(q, {
+          onToken: (text) =>
+            setThread((t) => t.map((e) => (e.id === id ? { ...e, streamed: (e.streamed ?? "") + text } : e))),
+        });
     setThread((t) => t.map((e) => (e.id === id ? { ...e, result } : e)));
   }
 
@@ -110,7 +106,12 @@ export function AskWorkspace({ items, files }: { items: Record<string, IndexedIt
                   Policy Desk
                   {e.result?.ok && <StatusLabel status={e.result.response.status} />}
                 </p>
-                {e.result === null && <p className={styles.pending}>Checking the policy files</p>}
+                {e.result === null &&
+                  (e.streamed ? (
+                    <AnswerText text={e.streamed} />
+                  ) : (
+                    <p className={styles.pending}>Checking the policy files</p>
+                  ))}
                 {e.result && !e.result.ok && (
                   <div className={styles.error} role="status">
                     <p>{e.result.message}</p>
@@ -422,9 +423,29 @@ function Evidence({
                   <dd>{m.model_route?.join(", ") || "No model call"}</dd>
                 </div>
                 <div>
-                  <dt>Cache</dt>
-                  <dd>{m.cache_hit ? "Served from cache" : "Fresh answer"}</dd>
+                  <dt>Fallback</dt>
+                  <dd>{m.fallback_used ? "Used" : "Not used"}</dd>
                 </div>
+                <div>
+                  <dt>Retrieval</dt>
+                  <dd>{m.cache_hit ? "From cache" : "Fresh"}</dd>
+                </div>
+                {m.timings_ms && (
+                  <div>
+                    <dt>Stages</dt>
+                    <dd>
+                      {Object.entries(m.timings_ms)
+                        .map(([k, v]) => `${k} ${v} ms`)
+                        .join(", ")}
+                    </dd>
+                  </div>
+                )}
+                {!!m.flagged_citations?.length && (
+                  <div>
+                    <dt>Unverified</dt>
+                    <dd>{m.flagged_citations.length} citation(s) removed: not in the supplied evidence</dd>
+                  </div>
+                )}
               </dl>
             )}
           </div>

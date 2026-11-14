@@ -4,7 +4,7 @@
  * different shape, the API adapts to it; the UI only reads these fields.
  */
 
-export type AnswerStatus = "answered" | "partial" | "not_covered" | "needs_info" | "conflict";
+export type AnswerStatus = "answered" | "partial" | "not_covered" | "needs_info" | "conflict" | "unavailable";
 
 /** Citation as used in the policy files: file number plus item, e.g. { file: "01", section: "5.3" }. */
 export type SourceRef = { file: string; section: string };
@@ -27,7 +27,7 @@ export type AskRequest = {
 
 export type AskResponse = {
   status: AnswerStatus;
-  /** Customer-facing text. Citations are inline as [file NN, Section X]. */
+  /** Customer-facing text. Citations are inline as [NN_file.md, Section X] or [file NN, Section X]. */
   answer: string;
   sources: SourceRef[];
   calculation: CalcStep[];
@@ -49,6 +49,16 @@ export type AskResponse = {
     /** When the desk asks a question: the outcomes that made the missing detail decisive. */
     slot_test?: { slot: string; outcomes: SlotOutcome[] };
     preview?: boolean;
+    /** Set by the answer service. */
+    request_id?: string;
+    session_id?: string;
+    fallback_used?: boolean;
+    interrupted?: boolean;
+    degraded?: boolean;
+    flagged_citations?: string[];
+    calc_status?: string | null;
+    timings_ms?: Record<string, number>;
+    evidence?: { id: string; status: string; why: string }[];
   };
 };
 
@@ -58,4 +68,5 @@ export const STATUS_LABEL: Record<AnswerStatus, string> = {
   not_covered: "Not covered",
   needs_info: "Needs one detail",
   conflict: "Files disagree",
+  unavailable: "Answer unavailable",
 };

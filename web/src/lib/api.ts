@@ -1,4 +1,4 @@
-import type { AskRequest, AskResponse } from "./contract";
+import type { AskResponse } from "./contract";
 import { findSample } from "./samples";
 import { API_URL } from "./site";
 
@@ -6,13 +6,31 @@ export type AskResult =
   | { ok: true; response: AskResponse; ms: number }
   | { ok: false; kind: "preview-miss" | "network" | "server" | "timeout"; message: string };
 
+export type StreamHandlers = {
+  /** Answer text as it arrives. */
+  onToken?: (text: string) => void;
+};
+
+/** One id per browser tab, so the answer service can keep this customer's facts. */
+export function sessionId(): string {
+  if (typeof window === "undefined") return "";
+  const key = "policy-desk-session";
+  let id = window.sessionStorage.getItem(key);
+  if (!id) {
+    id = (crypto.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(16).slice(2)}`).replace(/[^A-Za-z0-9-]/g, "");
+    window.sessionStorage.setItem(key, id);
+  }
+  return id;
+}
+
 /**
- * Sends a question to the answer API. Without NEXT_PUBLIC_API_URL the desk runs in
- * preview mode and only the hand-checked sample questions return answers.
+ * Asks the answer service and streams the reply (POST /chat/stream, Server-Sent
+ * Events: meta, token..., done). Without NEXT_PUBLIC_API_URL the desk runs in preview
+ * mode and only the hand-checked sample questions return answers.
  */
-export async function ask(req: AskRequest, timeoutMs = 45_000): Promise<AskResult> {
+export async function ask(question: string, handlers: StreamHandlers = {}, timeoutMs = 60_000): Promise<AskResult> {
   if (!API_URL) {
-    const sample = findSample(req.question);
+    const sample = findSample(question);
     if (sample) return { ok: true, response: sample.response, ms: 0 };
     return {
       ok: false,
@@ -26,24 +44,41 @@ export async function ask(req: AskRequest, timeoutMs = 45_000): Promise<AskResul
   const timer = setTimeout(() => ctrl.abort(), timeoutMs);
   const t0 = performance.now();
   try {
-    const res = await fetch(`${API_URL}/ask`, {
+    const res = await fetch(`${API_URL}/chat/stream`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(req),
+      body: JSON.stringify({ message: question, session_id: sessionId() }),
       signal: ctrl.signal,
     });
-    if (!res.ok) {
-      const busy = res.status === 429 || res.status === 503;
-      return {
-        ok: false,
-        kind: "server",
-        message: busy
-          ? "Every model provider is at its rate limit right now. Try again in a minute."
-          : `The answer service returned an error (${res.status}).`,
-      };
+    if (!res.ok || !res.body) {
+      return { ok: false, kind: "server", message: `The answer service returned an error (${res.status}).` };
     }
-    const response = (await res.json()) as AskResponse;
-    return { ok: true, response, ms: Math.round(performance.now() - t0) };
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = "";
+    let final: AskResponse | null = null;
+    for (;;) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      let cut: number;
+      while ((cut = buffer.indexOf("\n\n")) >= 0) {
+        const block = buffer.slice(0, cut);
+        buffer = buffer.slice(cut + 2);
+        const event = block.match(/^event: (.*)$/m)?.[1];
+        const data = block
+          .split("\n")
+          .filter((l) => l.startsWith("data: "))
+          .map((l) => l.slice(6))
+          .join("\n");
+        if (!event || !data) continue;
+        const parsed = JSON.parse(data);
+        if (event === "token") handlers.onToken?.(parsed as string);
+        else if (event === "done") final = parsed as AskResponse;
+      }
+    }
+    if (!final) return { ok: false, kind: "server", message: "The answer ended before it was complete. Please send it again." };
+    return { ok: true, response: final, ms: Math.round(performance.now() - t0) };
   } catch (e) {
     if ((e as Error).name === "AbortError")
       return { ok: false, kind: "timeout", message: `No reply within ${timeoutMs / 1000} seconds.` };
