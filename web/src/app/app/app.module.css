@@ -1,0 +1,149 @@
+.shell {
+  display: grid;
+  grid-template-columns: 240px minmax(0, 1fr);
+  min-height: 100vh;
+  background: var(--paper);
+}
+
+.side {
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+  padding: 20px 16px;
+  border-right: 1px solid var(--line);
+  background: var(--surface);
+}
+
+.brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 8px;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.mark {
+  width: 18px;
+  height: 18px;
+  border: 1.5px solid var(--ink);
+  border-radius: 50%;
+  position: relative;
+}
+
+.mark::after {
+  content: "";
+  position: absolute;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+  right: -3px;
+  top: -3px;
+}
+
+.nav {
+  display: grid;
+  gap: 2px;
+}
+
+.navLink {
+  display: grid;
+  padding: 8px 10px;
+  border-radius: var(--r-s);
+  text-decoration: none;
+  color: var(--ink-2);
+  transition: background-color 120ms var(--ease);
+}
+
+.navLink:hover {
+  background: var(--sunk);
+}
+
+.navLink[aria-current="page"] {
+  background: var(--sunk);
+  color: var(--ink);
+}
+
+.navLink[aria-current="page"] span:first-child {
+  font-weight: 600;
+}
+
+.navHint {
+  font-size: var(--t-12);
+  color: var(--muted);
+}
+
+.conn {
+  margin-top: auto;
+  padding: 12px;
+  border: 1px dashed var(--line-strong);
+  border-radius: var(--r-s);
+  font-size: var(--t-12);
+  color: var(--ink-2);
+  display: grid;
+  gap: 4px;
+  overflow-wrap: anywhere;
+}
+
+.connTitle {
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.main {
+  min-width: 0;
+}
+
+/* Shared page scaffolding for desk pages */
+.page {
+  max-width: 1080px;
+  padding: 40px 40px 80px;
+}
+
+.pageHead {
+  display: grid;
+  gap: 8px;
+  padding-bottom: 24px;
+  margin-bottom: 28px;
+  border-bottom: 1px solid var(--line);
+}
+
+.pageHead h1 {
+  font-size: var(--t-28);
+}
+
+.pageHead p {
+  color: var(--ink-2);
+  max-width: 68ch;
+}
+
+@media (max-width: 860px) {
+  .shell {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .side {
+    position: static;
+    height: auto;
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 12px;
+    border-right: 0;
+    border-bottom: 1px solid var(--line);
+  }
+  .nav {
+    grid-auto-flow: column;
+    overflow-x: auto;
+  }
+  .navHint,
+  .conn {
+    display: none;
+  }
+  .page {
+    padding: 24px 18px 64px;
+  }
+}
