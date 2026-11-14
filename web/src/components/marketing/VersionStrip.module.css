@@ -1,0 +1,76 @@
+.strip {
+  margin: 40px 0 0;
+}
+
+.axis {
+  position: relative;
+  height: 220px;
+  border-bottom: 1px solid var(--ink);
+}
+
+.stop {
+  position: absolute;
+  bottom: 0;
+  translate: -50% 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.files {
+  list-style: none;
+  margin: 0 0 8px;
+  padding: 0;
+  display: flex;
+  flex-direction: column-reverse;
+  gap: 4px;
+}
+
+.files li {
+  font-family: var(--font-mono);
+  font-size: var(--t-12);
+  width: 30px;
+  text-align: center;
+  padding: 2px 0;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-s);
+  background: var(--surface);
+  color: var(--ink);
+}
+
+.files li.regional {
+  border-color: var(--accent);
+  color: var(--accent-ink);
+}
+
+.tick {
+  width: 1px;
+  height: 10px;
+  background: var(--ink);
+}
+
+.date {
+  position: absolute;
+  top: 100%;
+  margin-top: 8px;
+  font-family: var(--font-mono);
+  font-size: var(--t-12);
+  color: var(--muted);
+  white-space: nowrap;
+  writing-mode: vertical-rl;
+  rotate: 180deg;
+}
+
+.strip figcaption {
+  margin-top: 104px;
+  max-width: 62ch;
+  font-size: var(--t-13);
+  color: var(--muted);
+}
+
+@media (max-width: 760px) {
+  .files li {
+    width: 24px;
+    font-size: 10px;
+  }
+}
