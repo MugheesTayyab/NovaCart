@@ -44,12 +44,11 @@ export const SAMPLES: Sample[] = [
       "I ordered a shirt (Rs. 2,400) and trousers (Rs. 3,600) on 2026-06-28 with code STYLE15 and paid by card. They were delivered to Lahore on 2026-07-01. Today is 2026-07-10 and I want to return the shirt. It's unworn with the tags on. How much do I get back?",
     response: {
       status: "answered",
+      // Two lines, as the system prompt requires. The working is in the calculation below.
       answer: [
-        "You can return the shirt. Clothing has a 30-day window from delivery, so you have until 2026-07-31 [file 01, Section 2.1].",
-        "Your refund is Rs. 1,840. STYLE15 took Rs. 900 off the order and the shirt's share of that is Rs. 360, so you paid Rs. 2,040 for it [file 12, Section 6.1]. Clothing has no restocking fee [file 01, Section 3.2]. One return label fee of Rs. 200 comes off the refund [file 01, Section 4.1].",
-        "Shipping is not refunded on a partial return [file 03, Section 2.1]. Your shipping was free in any case, because the order came to Rs. 5,100 after the discount [file 06, Section 1.1].",
-        "The refund goes back to your card within 7 business days of the shirt passing inspection [file 03, Section 3.2]. If you take store credit instead, you get a 5% bonus and receive Rs. 1,932 [file 14, Section 3.1].",
-      ].join("\n\n"),
+        "Yes, you can return the shirt until 2026-07-31 and get Rs. 1,840 [file 01, Section 2.1]: paid Rs. 2,040 after its Rs. 360 share of STYLE15 [file 12, Section 6.1]; no restocking fee [file 01, Section 3.2]; minus the Rs. 200 return label fee [file 01, Section 4.1].",
+        "It goes back to your card within 7 business days of passing inspection [file 03, Section 3.2], or you can take Rs. 1,932 in store credit with the 5% bonus [file 14, Section 3.1].",
+      ].join("\n"),
       sources: [
         { file: "01", section: "2.1" },
         { file: "12", section: "6.1" },
@@ -151,7 +150,7 @@ export const SAMPLES: Sample[] = [
       {
         value: "Metro city or Rest of Pakistan",
         response: followUp(
-          "The return window for electronics is 7 days from delivery, so it ended on 2026-08-10 and a change-of-mind return is no longer accepted [file 01, Section 2.1].\n\nIf the headphones turn out to be defective, they are covered by the 12-month electronics warranty [file 08, Section 2.1].",
+          "No, the 7-day electronics window ended on 2026-08-10, so a change-of-mind return is no longer accepted [file 01, Section 2.1].\nIf the headphones turn out to be defective, the 12-month electronics warranty still covers them [file 08, Section 2.1].",
           [
             ["01", "2.1"],
             ["08", "2.1"],
@@ -163,7 +162,7 @@ export const SAMPLES: Sample[] = [
       {
         value: "Remote area",
         response: followUp(
-          "In Remote areas the electronics window is 10 days from delivery, so you can return the headphones until 2026-08-13 [file 19, Section 4.1].\n\nSealed electronics have no restocking fee [file 01, Section 3.1]. The return label fee in Remote areas is Rs. 400 [file 19, Section 4.2].",
+          "Yes, Remote areas get a 10-day electronics window, so you can return them until 2026-08-13 [file 19, Section 4.1].\nSealed electronics have no restocking fee [file 01, Section 3.1]; the Remote return label fee is Rs. 400 [file 19, Section 4.2].",
           [
             ["19", "4.1"],
             ["01", "3.1"],
@@ -176,7 +175,7 @@ export const SAMPLES: Sample[] = [
       {
         value: "International",
         response: followUp(
-          "For international orders the window is 10 days from delivery, so you can return the headphones until 2026-08-13 [file 20, Section 6.1].\n\nYou arrange and pay the return shipping, and no return label fee is charged. Restocking fees still apply, but sealed electronics have none [file 20, Section 6.3] [file 01, Section 3.1].",
+          "Yes, international orders get a 10-day window, so you can return them until 2026-08-13 [file 20, Section 6.1].\nYou arrange and pay the return shipping with no label fee, and sealed electronics have no restocking fee [file 20, Section 6.3][file 01, Section 3.1].",
           [
             ["20", "6.1"],
             ["20", "6.3"],
@@ -195,9 +194,9 @@ export const SAMPLES: Sample[] = [
     response: {
       status: "partial",
       answer: [
-        "Cash on delivery costs Rs. 100 per order [file 11, Section 2.1]. It is available for Metro cities and the Rest of Pakistan, not for Remote areas or international orders [file 11, Section 1.1].",
-        "Gift cards: this is not covered. The payment methods in NovaCart's policies are cards, online banking, JazzCash and Easypaisa, cash on delivery and store credit [file 10, Section 1.1]. None of the files mention gift cards.",
-      ].join("\n\n"),
+        "Cash on delivery costs Rs. 100 per order, in Metro cities and the Rest of Pakistan only [file 11, Section 2.1][file 11, Section 1.1].",
+        "Gift cards: this is not covered in the supplied NovaCart policies, which list cards, online banking, JazzCash, Easypaisa, cash on delivery and store credit [file 10, Section 1.1].",
+      ].join("\n"),
       sources: [
         { file: "11", section: "2.1" },
         { file: "11", section: "1.1" },
@@ -217,10 +216,9 @@ export const SAMPLES: Sample[] = [
     response: {
       status: "conflict",
       answer: [
-        "The policy files give two different limits and do not settle which one applies.",
-        "File 10 sets the maximum for a cash on delivery order at Rs. 40,000 [file 10, Section 3.2]. File 11 sets it at Rs. 50,000 [file 11, Section 1.2]. Both took effect on 2026-05-01 with the same scope, so NovaCart support has to confirm the limit [file 00, Section 4.4].",
-        "An order up to Rs. 40,000 is inside both limits. Orders above Rs. 20,000 are verified by phone first [file 11, Section 3.1].",
-      ].join("\n\n"),
+        "The files disagree: one sets the cash on delivery maximum at Rs. 40,000 [file 10, Section 3.2] and another at Rs. 50,000 [file 11, Section 1.2], so NovaCart support must confirm [file 00, Section 4.4].",
+        "An order up to Rs. 40,000 is within both limits; orders above Rs. 20,000 are verified by phone first [file 11, Section 3.1].",
+      ].join("\n"),
       sources: [
         { file: "10", section: "3.2" },
         { file: "11", section: "1.2" },

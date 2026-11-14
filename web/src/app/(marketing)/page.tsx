@@ -114,11 +114,11 @@ export default function Home() {
             <p className={styles.question}>{refund.question}</p>
             <div className={styles.marked}>
               <Marker n={1} />
-              <AnswerText text={refund.response.answer} />
+              <AnswerText text={refund.response.answer} sources={refund.response.sources} />
             </div>
             <div className={`${styles.marked} ${styles.notice}`}>
               <Marker n={2} />
-              <AnswerText text={refund.response.meta.notices?.[0] ?? ""} />
+              <AnswerText text={refund.response.meta.notices?.[0] ?? ""} chips />
             </div>
             <div className={styles.marked}>
               <Marker n={3} />
@@ -140,8 +140,8 @@ export default function Home() {
           </article>
           <ol className={styles.notes}>
             <li>
-              <h3>A source on every line</h3>
-              <p>Each sentence ends with the file and section it came from. Open one and the clause is there to read.</p>
+              <h3>Two lines, a number on every claim</h3>
+              <p>The reply stays short. Each claim carries a small number; tap it and the file, section and clause open.</p>
             </li>
             <li>
               <h3>The version it used</h3>

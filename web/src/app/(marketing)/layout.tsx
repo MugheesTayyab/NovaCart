@@ -4,9 +4,11 @@ import styles from "./marketing.module.css";
 import { REPO_URL } from "@/lib/site";
 import { ChatWidget, OpenChatButton } from "@/components/marketing/ChatWidget";
 import { fileMetas, itemIndex } from "@/lib/policies";
+import { PolicyItemsProvider } from "@/components/SourceMenu";
 
 export default function MarketingLayout({ children }: { children: React.ReactNode }) {
   return (
+    <PolicyItemsProvider items={itemIndex()}>
     <div className={styles.site}>
       <header className={styles.header}>
         <Link href="/" className={styles.brand}>
@@ -33,7 +35,8 @@ export default function MarketingLayout({ children }: { children: React.ReactNod
           <Link href="/app">Open the desk</Link>
         </div>
       </footer>
-      <ChatWidget items={itemIndex()} files={fileMetas()} />
+      <ChatWidget files={fileMetas()} />
     </div>
+    </PolicyItemsProvider>
   );
 }

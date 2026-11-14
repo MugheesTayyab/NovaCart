@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import styles from "./ChatWidget.module.css";
 import { AskWorkspace } from "@/components/app/AskWorkspace";
 import type { FileMeta } from "@/lib/cite";
-import type { IndexedItem } from "@/lib/policies";
+import { usePolicyItems } from "@/components/SourceMenu";
 import { API_URL } from "@/lib/site";
 
 /** Other parts of the site open the window by dispatching this event. */
@@ -19,8 +19,9 @@ type Phase = "closed" | "pop" | "restore" | "closing" | "expanding";
  * hands over to /app; the desk's "Window" button comes back here with ?chat=open.
  * The conversation is the same in both, kept for this browser tab.
  */
-export function ChatWidget({ items, files }: { items: Record<string, IndexedItem>; files: FileMeta[] }) {
+export function ChatWidget({ files }: { files: FileMeta[] }) {
   const router = useRouter();
+  const items = usePolicyItems() ?? {};
   const [phase, setPhase] = useState<Phase>("closed");
   const [mounted, setMounted] = useState(false);
   const [request, setRequest] = useState<{ sampleId: string; n: number } | undefined>();
