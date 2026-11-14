@@ -7,7 +7,34 @@ import type { AskResponse } from "./contract";
  * checked against /policies. Do not edit a number without re-checking the file.
  */
 
-export type Sample = { id: string; label: string; question: string; response: AskResponse };
+export type Sample = {
+  id: string;
+  label: string;
+  question: string;
+  response: AskResponse;
+  /** Replies to the clarifying question, keyed by the value the customer picks. */
+  followUps?: { value: string; response: AskResponse }[];
+};
+
+const followUp = (
+  answer: string,
+  sources: [string, string][],
+  region: string,
+  rule: { rule: string; reason: string },
+): AskResponse => ({
+  status: "answered",
+  answer,
+  sources: sources.map(([file, section]) => ({ file, section })),
+  calculation: [],
+  rule_order: [rule],
+  clarifying_question: null,
+  not_covered_parts: [],
+  meta: {
+    preview: true,
+    contact_date: "2026-08-12",
+    slots: { region, category: "Electronics", "delivery date": "2026-08-03", condition: "Sealed", reason: "Change of mind" },
+  },
+});
 
 export const SAMPLES: Sample[] = [
   {
@@ -120,6 +147,46 @@ export const SAMPLES: Sample[] = [
         },
       },
     },
+    followUps: [
+      {
+        value: "Metro city or Rest of Pakistan",
+        response: followUp(
+          "The return window for electronics is 7 days from delivery, so it ended on 2026-08-10 and a change-of-mind return is no longer accepted [file 01, Section 2.1].\n\nIf the headphones turn out to be defective, they are covered by the 12-month electronics warranty [file 08, Section 2.1].",
+          [
+            ["01", "2.1"],
+            ["08", "2.1"],
+          ],
+          "Metro city or Rest of Pakistan",
+          { rule: "01#2.1", reason: "No regional addendum covers this region, so the general window of 7 days applies." },
+        ),
+      },
+      {
+        value: "Remote area",
+        response: followUp(
+          "In Remote areas the electronics window is 10 days from delivery, so you can return the headphones until 2026-08-13 [file 19, Section 4.1].\n\nSealed electronics have no restocking fee [file 01, Section 3.1]. The return label fee in Remote areas is Rs. 400 [file 19, Section 4.2].",
+          [
+            ["19", "4.1"],
+            ["01", "3.1"],
+            ["19", "4.2"],
+          ],
+          "Remote area",
+          { rule: "00#4.1", reason: "File 19 is regional and overrides file 01's window and label fee for Remote areas." },
+        ),
+      },
+      {
+        value: "International",
+        response: followUp(
+          "For international orders the window is 10 days from delivery, so you can return the headphones until 2026-08-13 [file 20, Section 6.1].\n\nYou arrange and pay the return shipping, and no return label fee is charged. Restocking fees still apply, but sealed electronics have none [file 20, Section 6.3] [file 01, Section 3.1].",
+          [
+            ["20", "6.1"],
+            ["20", "6.3"],
+            ["01", "3.1"],
+          ],
+          "International",
+          { rule: "00#4.1", reason: "File 20 is regional and overrides file 01's window and return costs for international orders." },
+        ),
+      },
+    ],
   },
   {
     id: "gift-card-cod-fee",
