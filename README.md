@@ -15,6 +15,10 @@ A customer-support assistant that answers from NovaCart's 22 policy files only, 
 
 Without Docker: `cd api && pip install -r requirements.txt && uvicorn app.main:app --port 8000`, and `cd web && npm install && npm run dev` with `NEXT_PUBLIC_API_URL=http://localhost:8000` in `web/.env.local`.
 
+## Deploy to Vercel
+
+`node scripts/deploy.mjs` (or double-click `scripts/deploy.cmd`). It copies `.env` to the `api` project, creates and deploys the `novacart-web` project (root `web`) with `NEXT_PUBLIC_API_URL`, adds the web URL to `ALLOWED_ORIGINS`, redeploys both from GitHub `main` and checks `/health`, CORS and the UI. Needs `VERCEL_TOKEN` in `.env`. Push first: Vercel builds what is on GitHub. `--dry-run` changes nothing; `--api-only` skips the UI.
+
 ## Environment variables
 
 All configuration is read from the environment once at startup; `.env.example` lists every variable with a comment. Required: `PRIMARY_LLM_API_KEY` and `PRIMARY_LLM_MODEL` (plus `PRIMARY_LLM_PROVIDER` or `PRIMARY_LLM_BASE_URL`). If they are missing the service still starts, `/health` reports the problem and chat replies that the service is not configured. The fallback provider is optional; without it the service logs one warning and runs on the primary alone. Keys are never logged and `.env` is git-ignored.
